@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { convertToI18nKey, extractVariables } from './convert';
+import { translateTexts } from './translator';
 
 // JSON 파일 생성을 위한 인터페이스
 export interface LocaleEntry {
@@ -94,18 +95,12 @@ export async function generateLocalesJson(texts: string[], language: string = 'k
 			continue; // 기존 키는 건너뛰기
 		}
 
-		// 중복 키 처리 (새로 생성되는 키들 간의 중복)
-		let finalKey = key;
-		let counter = 1;
-		while (usedKeys.has(finalKey) || existingKeys.has(finalKey)) {
-			finalKey = `${key}_${counter}`;
-			counter++;
-		}
-		usedKeys.add(finalKey);
-		newKeys.push(finalKey);
+		// 중복 키 처리 제거 - 같은 텍스트는 같은 키 사용
+		usedKeys.add(key);
+		newKeys.push(key);
 
 		localeEntries.push({
-			key: finalKey,
+			key: key,
 			value: value,
 			variables: variableInfo.variables.length > 0 ? variableInfo.variables : undefined
 		});
@@ -191,7 +186,159 @@ export async function showLocalesGenerationDialog(texts: string[], language: str
 	await showLanguageSelectionDialog(texts);
 }
 
-// 언어 선택 다이얼로그 함수
+// 번역 서비스 선택 다이얼로그 (DeepL만 지원)
+export async function showTranslationServiceDialog(texts: string[], language: string): Promise<void> {
+	const config = vscode.workspace.getConfiguration('i18nManager.translation');
+	const deeplKey = config.get<string>('deeplApiKey', '');
+	
+	if (!deeplKey) {
+		// API 키가 없는 경우 설정 안내
+		const result = await vscode.window.showWarningMessage(
+			'DeepL API 키가 설정되지 않았습니다. 설정하시겠습니까?',
+			'설정 열기',
+			'취소'
+		);
+		
+		if (result === '설정 열기') {
+			await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.translation');
+		}
+		return;
+	}
+
+	// DeepL로 번역 실행
+	await generateLocalesWithDeepL(texts, language);
+}
+
+// 번역된 텍스트로 locales 파일 생성
+async function generateLocalesJsonWithTranslatedTexts(originalTexts: string[], translatedTexts: string[], language: string, outputPath?: string): Promise<void> {
+	if (originalTexts.length === 0) {
+		vscode.window.showInformationMessage('생성할 한글 텍스트가 없습니다.');
+		return;
+	}
+
+	// 출력 경로가 지정되지 않은 경우 프로젝트 루트에 자동 저장
+	let targetPath = outputPath;
+	if (!targetPath) {
+		const projectRoot = getProjectRoot();
+		const fileName = `locales.${language}.json`;
+		targetPath = `${projectRoot}/${fileName}`;
+	}
+
+	// 기존 파일 읽기
+	const existingLocales = await readExistingLocales(targetPath);
+	const existingKeys = new Set(Object.keys(existingLocales));
+
+	// 텍스트를 i18n 키와 값으로 변환
+	const localeEntries: LocaleEntry[] = [];
+	const usedKeys = new Set<string>(); // 중복 키 방지
+	const skippedKeys: string[] = []; // 건너뛴 키들
+	const newKeys: string[] = []; // 새로 추가된 키들
+
+	for (let i = 0; i < originalTexts.length; i++) {
+		const originalText = originalTexts[i];
+		const translatedText = translatedTexts[i];
+
+		const variableInfo = extractVariables(originalText);
+		let key: string;
+		let value: string;
+
+		if (variableInfo.variables.length === 0) {
+			// 변수가 없는 경우
+			key = convertToI18nKey(originalText);
+			value = translatedText;
+		} else {
+			// 변수가 있는 경우 - 키는 템플릿 기반, 값은 i18n 키 형식으로 변환
+			key = convertToI18nKey(variableInfo.template);
+			// 변수를 i18n 키 형식으로 변환 ({{ }} 형태를 {숫자} 형태로)
+			let i18nValue = translatedText;
+			let index = 0;
+			
+			// ${} 형태 변수를 {숫자} 형태로 변환
+			i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
+			
+			// {{}} 형태 변수를 {숫자} 형태로 변환
+			i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
+			
+			value = i18nValue;
+		}
+
+		// 기존 키가 있는지 확인
+		if (existingKeys.has(key)) {
+			skippedKeys.push(key);
+			continue; // 기존 키는 건너뛰기
+		}
+
+		// 중복 키 처리 (새로 생성되는 키들 간의 중복)
+		let finalKey = key;
+		let counter = 1;
+		while (usedKeys.has(finalKey) || existingKeys.has(finalKey)) {
+			finalKey = `${key}_${counter}`;
+			counter++;
+		}
+		usedKeys.add(finalKey);
+		newKeys.push(finalKey);
+
+		localeEntries.push({
+			key: finalKey,
+			value: value,
+			variables: variableInfo.variables.length > 0 ? variableInfo.variables : undefined
+		});
+	}
+
+	// 기존 locales와 새로운 locales 병합
+	const mergedLocales = { ...existingLocales };
+	localeEntries.forEach(entry => {
+		mergedLocales[entry.key] = entry.value;
+	});
+
+	// JSON 파일로 저장
+	try {
+		const jsonContent = JSON.stringify(mergedLocales, null, 2);
+		await vscode.workspace.fs.writeFile(
+			vscode.Uri.file(targetPath),
+			new TextEncoder().encode(jsonContent)
+		);
+
+		const languageName = getLanguageName(language);
+		const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
+		
+		// 결과 메시지 구성
+		let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}\n`;
+		message += `새로 추가된 항목: ${newKeys.length}개\n`;
+		if (skippedKeys.length > 0) {
+			message += `기존 키로 인해 건너뛴 항목: ${skippedKeys.length}개`;
+		}
+		
+		vscode.window.showInformationMessage(message);
+
+		// 건너뛴 키가 있으면 상세 정보 표시
+		if (skippedKeys.length > 0) {
+			const showDetails = await vscode.window.showInformationMessage(
+				`${skippedKeys.length}개의 기존 키가 건너뛰어졌습니다. 상세 정보를 보시겠습니까?`,
+				'상세 보기',
+				'닫기'
+			);
+			
+			if (showDetails === '상세 보기') {
+				const skippedKeysText = skippedKeys.join('\n');
+				const doc = await vscode.workspace.openTextDocument({
+					content: `건너뛴 키 목록:\n\n${skippedKeysText}`,
+					language: 'plaintext'
+				});
+				await vscode.window.showTextDocument(doc);
+			}
+		}
+
+		// 생성된 파일을 에디터에서 열기
+		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(targetPath));
+		await vscode.window.showTextDocument(document);
+
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`파일 생성 중 오류가 발생했습니다: ${error.message}`);
+	}
+}
+
+// 언어 선택 다이얼로그 함수 (번역 서비스 선택 제거)
 export async function showLanguageSelectionDialog(texts: string[]): Promise<void> {
 	if (texts.length === 0) {
 		vscode.window.showInformationMessage('생성할 한글 텍스트가 없습니다.');
@@ -209,14 +356,14 @@ export async function showLanguageSelectionDialog(texts: string[]): Promise<void
 		} as any,
 		{
 			label: '🇺🇸 영어 (en)',
-			description: '영어로 번역하여 locales.en.json 생성',
-			detail: '번역 서비스 연동 예정',
+			description: 'DeepL로 번역하여 locales.en.json 생성',
+			detail: 'DeepL API를 사용하여 영어로 번역',
 			language: 'en'
 		} as any,
 		{
 			label: '🇯🇵 일본어 (ja)',
-			description: '일본어로 번역하여 locales.ja.json 생성',
-			detail: '번역 서비스 연동 예정',
+			description: 'DeepL로 번역하여 locales.ja.json 생성',
+			detail: 'DeepL API를 사용하여 일본어로 번역',
 			language: 'ja'
 		} as any,
 		{
@@ -238,9 +385,12 @@ export async function showLanguageSelectionDialog(texts: string[]): Promise<void
 			if (selectedLanguage === 'all') {
 				// 전체 언어 생성
 				await generateAllLanguages(texts);
-			} else {
-				// 단일 언어 생성
+			} else if (selectedLanguage === 'ko') {
+				// 한국어는 바로 생성
 				await generateLocalesJson(texts, selectedLanguage);
+			} else {
+				// 다른 언어는 DeepL로 번역 후 생성
+				await generateLocalesWithDeepL(texts, selectedLanguage);
 			}
 		}
 	});
@@ -248,8 +398,63 @@ export async function showLanguageSelectionDialog(texts: string[]): Promise<void
 	quickPick.show();
 }
 
+// DeepL로 번역과 함께 locales 파일 생성
+async function generateLocalesWithDeepL(texts: string[], language: string): Promise<void> {
+	const config = vscode.workspace.getConfiguration('i18nManager.translation');
+	const apiKey = config.get<string>('deeplApiKey', '');
+
+	if (!apiKey) {
+		const result = await vscode.window.showWarningMessage(
+			'DeepL API 키가 설정되지 않았습니다. 설정하시겠습니까?',
+			'설정 열기',
+			'취소'
+		);
+		
+		if (result === '설정 열기') {
+			await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.translation');
+		}
+		return;
+	}
+
+	try {
+		// 진행 상황 표시
+		await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: `${getLanguageName(language)} 번역 중...`,
+			cancellable: false
+		}, async (progress) => {
+			progress.report({ message: 'DeepL 번역 서비스 호출 중...' });
+			const translatedTexts = await translateTexts(texts, language, 'deepl', apiKey);
+			
+			// 번역된 텍스트로 locales 파일 생성
+			await generateLocalesJsonWithTranslatedTexts(texts, translatedTexts, language);
+		});
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`번역 중 오류가 발생했습니다: ${error.message}`);
+	}
+}
+
 // 모든 언어로 locales 파일 생성하는 함수
 async function generateAllLanguages(texts: string[]): Promise<void> {
+	const config = vscode.workspace.getConfiguration('i18nManager.translation');
+	const deeplKey = config.get<string>('deeplApiKey', '');
+	
+	if (!deeplKey) {
+		// API 키가 없으면 한국어만 생성
+		await generateLocalesJson(texts, 'ko');
+		const result = await vscode.window.showWarningMessage(
+			'DeepL API 키가 설정되지 않아 한국어 파일만 생성되었습니다. 설정하시겠습니까?',
+			'설정 열기',
+			'닫기'
+		);
+		
+		if (result === '설정 열기') {
+			await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.translation');
+		}
+		return;
+	}
+
+	// DeepL로 모든 언어 생성
 	const languages = ['ko', 'en', 'ja'];
 	let successCount = 0;
 	let totalCount = 0;
@@ -270,7 +475,13 @@ async function generateAllLanguages(texts: string[]): Promise<void> {
 			});
 
 			try {
-				await generateLocalesJson(texts, language);
+				if (language === 'ko') {
+					// 한국어는 번역 없이 바로 생성
+					await generateLocalesJson(texts, language);
+				} else {
+					// 다른 언어는 번역 후 생성
+					await generateLocalesWithDeepL(texts, language);
+				}
 				successCount++;
 			} catch (error) {
 				console.error(`${language} 파일 생성 실패:`, error);

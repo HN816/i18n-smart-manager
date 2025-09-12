@@ -164,6 +164,11 @@
           "type": "string",
           "default": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')",
           "description": "키 생성 커스텀 함수 (JavaScript 코드). 'text' 매개변수를 받아 변환된 키를 반환해야 합니다."
+        },
+        "i18nManager.translation.deeplApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepL API 키"
         }
       }
     }
