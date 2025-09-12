@@ -280,6 +280,12 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// 선택된 텍스트를 pending에 추가하는 명령어 등록
+	const addSelectedCommand = vscode.commands.registerCommand('i18n-manager.addSelected', () => {
+		addSelectedTextToPending();
+	});
+
+	// 모든 명령어를 context에 등록
 	context.subscriptions.push(
 		startCommand,
 		stopCommand,
@@ -289,7 +295,8 @@ export function activate(context: vscode.ExtensionContext) {
 		goToTextCommand,
 		previewCommand,
 		clearPreviewCommand,
-		convertAllCommand
+		convertAllCommand,
+		addSelectedCommand
 	);
 }
 
@@ -449,6 +456,69 @@ function goToTextLocation(text: string): void {
 	
 	// 포커스 이동
 	vscode.window.showTextDocument(editor.document, editor.viewColumn);
+}
+
+// 선택된 텍스트를 pending에 추가하는 함수
+function addSelectedTextToPending(): void {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		vscode.window.showWarningMessage('활성 편집기가 없습니다.');
+		return;
+	}
+
+	const selection = editor.selection;
+	if (selection.isEmpty) {
+		vscode.window.showWarningMessage('텍스트를 선택해주세요.');
+		return;
+	}
+
+	const selectedText = editor.document.getText(selection).trim();
+	if (!selectedText) {
+		vscode.window.showWarningMessage('선택된 텍스트가 없습니다.');
+		return;
+	}
+
+	// 한글이 포함되어 있는지 확인
+	if (!/[가-힣]/.test(selectedText)) {
+		vscode.window.showWarningMessage('선택된 텍스트에 한글이 포함되어 있지 않습니다.');
+		return;
+	}
+
+	// 이미 pending에 있는지 확인
+	const existingTexts = treeDataProvider.getFilteredKoreanTexts();
+	if (existingTexts.includes(selectedText)) {
+		vscode.window.showInformationMessage('이미 pending 목록에 있는 텍스트입니다.');
+		return;
+	}
+
+	// 선택된 텍스트의 위치 정보 생성
+	const start = editor.document.offsetAt(selection.start);
+	const end = editor.document.offsetAt(selection.end);
+	
+	// 새로운 KoreanRange 생성
+	const newRange = {
+		start: start,
+		end: end,
+		text: selectedText
+	};
+
+	// currentKoreanRanges에 추가
+	currentKoreanRanges.push(newRange);
+
+	// TreeView 업데이트
+	const allTexts = [
+		...currentKoreanRanges.map(range => ({ text: range.text, type: 'korean' as const })),
+		...currentI18nRanges.map(range => ({ text: range.text, type: 'i18n' as const }))
+	];
+	treeDataProvider.updateData(allTexts);
+
+	// 하이라이트 업데이트
+	const filteredKoreanRanges = currentKoreanRanges.filter(range => 
+		!treeDataProvider.getExcludedTexts().has(range.text)
+	);
+	highlighter.highlightText(editor, filteredKoreanRanges, currentI18nRanges);
+
+	vscode.window.showInformationMessage('pending 목록에 추가되었습니다.');
 }
 
 // This method is called when your extension is deactivated

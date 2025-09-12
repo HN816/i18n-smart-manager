@@ -50,6 +50,12 @@
         "icon": "$(check)"
       },
       {
+        "command": "i18n-manager.goToText",
+        "title": "위치로 이동",
+        "description": "I18n Manager: Go to text location",
+        "icon": "$(location)"
+      },
+      {
         "command": "i18n-manager.previewConversion",
         "title": "변환 미리보기",
         "description": "I18n Manager: Preview conversion results",
@@ -60,6 +66,19 @@
         "title": "미리보기 제거",
         "description": "I18n Manager: Clear conversion preview",
         "icon": "$(x)"
+      },
+      {
+        "command": "i18n-manager.addSelected",
+        "title": "선택된 텍스트 추가",
+        "description": "I18n Manager: Add selected text to pending list",
+        "icon": "$(add)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "i18n-manager.addSelected",
+        "key": "ctrl+shift+a",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
@@ -95,6 +114,18 @@
           "command": "i18n-manager.include",
           "when": "view == i18nManager && viewItem == excluded-text",
           "group": "inline"
+        },
+        {
+          "command": "i18n-manager.goToText",
+          "when": "view == i18nManager && (viewItem == korean-text || viewItem == i18n-text)",
+          "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "i18n-manager.addSelected",
+          "when": "editorTextFocus",
+          "group": "i18n-manager"
         }
       ]
     },
