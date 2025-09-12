@@ -180,13 +180,113 @@ function getLanguageName(languageCode: string): string {
 	return languageMap[languageCode] || languageCode.toUpperCase();
 }
 
-// locales.json 생성 명령어를 위한 헬퍼 함수
+// locales.json 생성 명령어를 위한 헬퍼 함수 (기존 함수 수정)
 export async function showLocalesGenerationDialog(texts: string[], language: string = 'ko'): Promise<void> {
 	if (texts.length === 0) {
 		vscode.window.showInformationMessage('생성할 한글 텍스트가 없습니다.');
 		return;
 	}
 
-	// 바로 기본 JSON 생성
-	await generateLocalesJson(texts, language);
+	// 언어 선택 다이얼로그 표시
+	await showLanguageSelectionDialog(texts);
+}
+
+// 언어 선택 다이얼로그 함수
+export async function showLanguageSelectionDialog(texts: string[]): Promise<void> {
+	if (texts.length === 0) {
+		vscode.window.showInformationMessage('생성할 한글 텍스트가 없습니다.');
+		return;
+	}
+
+	// 사용자에게 언어 선택하게 함
+	const quickPick = vscode.window.createQuickPick();
+	quickPick.items = [
+		{
+			label: '🇰🇷 한국어 (ko)',
+			description: '원본 한국어 텍스트로 locales.ko.json 생성',
+			detail: '한국어 텍스트를 그대로 사용',
+			language: 'ko'
+		} as any,
+		{
+			label: '🇺🇸 영어 (en)',
+			description: '영어로 번역하여 locales.en.json 생성',
+			detail: '번역 서비스 연동 예정',
+			language: 'en'
+		} as any,
+		{
+			label: '🇯🇵 일본어 (ja)',
+			description: '일본어로 번역하여 locales.ja.json 생성',
+			detail: '번역 서비스 연동 예정',
+			language: 'ja'
+		} as any,
+		{
+			label: '🌍 전체 언어 (ko + en + ja)',
+			description: '모든 언어로 locales 파일들을 한번에 생성',
+			detail: '한국어, 영어, 일본어 파일을 모두 생성합니다',
+			language: 'all'
+		} as any
+	];
+	quickPick.title = '언어 선택';
+	quickPick.placeholder = '생성할 locales 파일의 언어를 선택하세요';
+
+	quickPick.onDidChangeSelection(async (selection) => {
+		quickPick.hide();
+		
+		if (selection.length > 0) {
+			const selectedLanguage = (selection[0] as any).language;
+			
+			if (selectedLanguage === 'all') {
+				// 전체 언어 생성
+				await generateAllLanguages(texts);
+			} else {
+				// 단일 언어 생성
+				await generateLocalesJson(texts, selectedLanguage);
+			}
+		}
+	});
+
+	quickPick.show();
+}
+
+// 모든 언어로 locales 파일 생성하는 함수
+async function generateAllLanguages(texts: string[]): Promise<void> {
+	const languages = ['ko', 'en', 'ja'];
+	let successCount = 0;
+	let totalCount = 0;
+
+	// 진행 상황 표시
+	await vscode.window.withProgress({
+		location: vscode.ProgressLocation.Notification,
+		title: "locales 파일 생성 중...",
+		cancellable: false
+	}, async (progress) => {
+		for (let i = 0; i < languages.length; i++) {
+			const language = languages[i];
+			const languageName = getLanguageName(language);
+			
+			progress.report({
+				increment: (100 / languages.length),
+				message: `${languageName} 파일 생성 중...`
+			});
+
+			try {
+				await generateLocalesJson(texts, language);
+				successCount++;
+			} catch (error) {
+				console.error(`${language} 파일 생성 실패:`, error);
+			}
+			totalCount++;
+		}
+	});
+
+	// 결과 메시지
+	if (successCount === totalCount) {
+		vscode.window.showInformationMessage(
+			`모든 언어의 locales 파일이 성공적으로 생성되었습니다! (${successCount}/${totalCount})`
+		);
+	} else {
+		vscode.window.showWarningMessage(
+			`locales 파일 생성이 완료되었습니다. 성공: ${successCount}/${totalCount}`
+		);
+	}
 }

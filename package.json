@@ -75,8 +75,8 @@
       },
       {
         "command": "i18n-manager.generateLocales",
-        "title": "locales.ko.json 생성",
-        "description": "I18n Manager: Generate Korean locales file",
+        "title": "locales 파일 생성",
+        "description": "I18n Manager: Generate locales files",
         "icon": "$(file-code)"
       }
     ],
