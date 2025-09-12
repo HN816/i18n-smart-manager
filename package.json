@@ -169,6 +169,11 @@
           "type": "string",
           "default": "",
           "description": "DeepL API 키"
+        },
+        "i18nManager.locales.outputPath": {
+          "type": "string",
+          "default": "",
+          "description": "locales 파일 저장 경로 (비어있으면 프로젝트 루트에 저장)"
         }
       }
     }

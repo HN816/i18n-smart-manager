@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { convertToI18nKey, extractVariables } from './convert';
 import { translateTexts } from './translator';
+import * as path from 'path';
 
 // JSON 파일 생성을 위한 인터페이스
 export interface LocaleEntry {
@@ -27,6 +28,17 @@ function getProjectRoot(): string {
 	return process.cwd();
 }
 
+// 경로를 절대 경로로 변환하는 함수
+function resolvePath(path: string): string {
+	if (path.startsWith('./') || path.startsWith('../')) {
+		// 상대 경로인 경우 프로젝트 루트 기준으로 절대 경로로 변환
+		const projectRoot = getProjectRoot();
+		const pathModule = require('path');
+		return pathModule.resolve(projectRoot, path);
+	}
+	return path; // 이미 절대 경로인 경우
+}
+
 // 기존 JSON 파일을 읽어오는 함수
 async function readExistingLocales(filePath: string): Promise<{ [key: string]: string }> {
 	try {
@@ -46,12 +58,23 @@ export async function generateLocalesJson(texts: string[], language: string = 'k
 		return;
 	}
 
-	// 출력 경로가 지정되지 않은 경우 프로젝트 루트에 자동 저장
+	// 출력 경로가 지정되지 않은 경우 기본 경로 사용
 	let targetPath = outputPath;
 	if (!targetPath) {
-		const projectRoot = getProjectRoot();
-		const fileName = `locales.${language}.json`;
-		targetPath = `${projectRoot}/${fileName}`;
+		const config = vscode.workspace.getConfiguration('i18nManager.locales');
+		const customPath = config.get<string>('outputPath', '');
+		
+		if (customPath) {
+			// 사용자가 지정한 경로가 있으면 그곳에 저장
+			const resolvedPath = resolvePath(customPath);
+			const fileName = `locales.${language}.json`;
+			targetPath = path.join(resolvedPath, fileName);
+		} else {
+			// 기본은 프로젝트 루트에 저장
+			const projectRoot = getProjectRoot();
+			const fileName = `locales.${language}.json`;
+			targetPath = path.join(projectRoot, fileName);
+		}
 	}
 
 	// 기존 파일 읽기
@@ -216,12 +239,24 @@ async function generateLocalesJsonWithTranslatedTexts(originalTexts: string[], t
 		return;
 	}
 
-	// 출력 경로가 지정되지 않은 경우 프로젝트 루트에 자동 저장
+	// 출력 경로가 지정되지 않은 경우 기본 경로 사용
 	let targetPath = outputPath;
 	if (!targetPath) {
-		const projectRoot = getProjectRoot();
-		const fileName = `locales.${language}.json`;
-		targetPath = `${projectRoot}/${fileName}`;
+		const config = vscode.workspace.getConfiguration('i18nManager.locales');
+		const customPath = config.get<string>('outputPath', '');
+		
+		if (customPath) {
+			// 사용자가 지정한 경로가 있으면 그곳에 저장
+			const projectRoot = getProjectRoot();
+			const resolvedPath = path.resolve(projectRoot, customPath);
+			const fileName = `locales.${language}.json`;
+			targetPath = path.join(resolvedPath, fileName);
+		} else {
+			// 기본은 프로젝트 루트에 저장
+			const projectRoot = getProjectRoot();
+			const fileName = `locales.${language}.json`;
+			targetPath = path.join(projectRoot, fileName);
+		}
 	}
 
 	// 기존 파일 읽기
