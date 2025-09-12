@@ -371,9 +371,8 @@ export function findKoreanRangesWithMapping(
 						}
 						
 						if (content) {
-							// >< 태그의 경우 텍스트 부분만 하이라이팅하도록 범위 조정
 							if (stringType === '>') {
-								// 텍스트 부분의 시작과 끝 위치 계산 (공백 제거 고려)
+								// >< 태그의 경우 양 끝 공백/줄바꿈 제거
 								const fullContent = currentWord.slice(1, -1);
 								const trimmedStart = fullContent.length - fullContent.trimStart().length;
 								const trimmedEnd = fullContent.trimEnd().length;
@@ -389,10 +388,14 @@ export function findKoreanRangesWithMapping(
 									text: content
 								});
 							} else {
-								// 일반 따옴표의 경우 기존 로직 유지
+								const textStart = currentStart + 1; // 따옴표 다음부터
+								const textEnd = currentStart + 1 + content.length; // 내용만의 끝
+								const textOriginalStart = positionMap[textStart];
+								const textOriginalEnd = positionMap[textEnd - 1] + 1;
+								
 								koreanRanges.push({
-									start: originalStart,
-									end: originalEnd,
+									start: textOriginalStart,
+									end: textOriginalEnd,
 									text: content
 								});
 							}

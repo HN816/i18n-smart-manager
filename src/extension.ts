@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { extractKoreanTexts } from './korean-extractor';
 import { TextHighlighter } from './highlighter';
+import { highlightConversionTargets, clearConversionPreview, applyConversionFromPreview } from './convert';
 
 // TreeView 데이터 프로바이더
 class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
@@ -28,8 +29,9 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 			const items: I18nItem[] = [];
 
 			// 국제화 대기 섹션
+			const filteredCount = this.koreanTexts.filter(item => !this.excludedTexts.has(item.label)).length;
 			const pendingSection = new I18nItem(
-				`🌐 국제화 대기 (${this.koreanTexts.length})`,
+				`🌐 Pending (${filteredCount})`,
 				'pending-section',
 				vscode.TreeItemCollapsibleState.Expanded
 			);
@@ -38,7 +40,7 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 
 			// 국제화 완료 섹션
 			const completedSection = new I18nItem(
-				`✅ 국제화 완료 (${this.i18nTexts.length})`,
+				`✅ Applied (${this.i18nTexts.length})`,
 				'completed-section',
 				vscode.TreeItemCollapsibleState.Expanded
 			);
@@ -50,7 +52,9 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 
 		// 섹션의 자식들 반환
 		if (element.type === 'pending-section') {
-			return Promise.resolve(this.koreanTexts.filter(item => !this.excludedTexts.has(item.label)));
+			// 한글 텍스트들만
+			const filteredKoreanTexts = this.koreanTexts.filter(item => !this.excludedTexts.has(item.label));
+			return Promise.resolve(filteredKoreanTexts);
 		} else if (element.type === 'completed-section') {
 			return Promise.resolve(this.i18nTexts);
 		}
@@ -67,7 +71,7 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 					'korean',
 					vscode.TreeItemCollapsibleState.None
 				);
-				treeItem.tooltip = `한글 텍스트: ${item.text}`;
+				treeItem.tooltip = `Korean text: ${item.text}`;
 				treeItem.contextValue = 'korean-text';
 				// 클릭 시 해당 위치로 이동
 				treeItem.command = {
@@ -86,7 +90,7 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 					'i18n',
 					vscode.TreeItemCollapsibleState.None
 				);
-				treeItem.tooltip = `i18n 적용됨: ${item.text}`;
+				treeItem.tooltip = `i18n applied: ${item.text}`;
 				treeItem.contextValue = 'i18n-text';
 				// 클릭 시 해당 위치로 이동
 				treeItem.command = {
@@ -114,7 +118,7 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 
 	excludeText(text: string): void {
 		this.excludedTexts.add(text);
-		this.refresh();
+		this.refresh(); // TreeView 새로고침으로 카운트 업데이트
 		
 		// 하이라이트 업데이트
 		updateHighlights();
@@ -122,7 +126,7 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 
 	includeText(text: string): void {
 		this.excludedTexts.delete(text);
-		this.refresh();
+		this.refresh(); // TreeView 새로고침으로 카운트 업데이트
 		
 		// 하이라이트 업데이트
 		updateHighlights();
@@ -130,6 +134,18 @@ class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
 
 	getExcludedTexts(): Set<string> {
 		return this.excludedTexts;
+	}
+
+	// 제외 목록 초기화 메서드 추가
+	clearExcludedTexts(): void {
+		this.excludedTexts.clear();
+	}
+
+	// 제외되지 않은 한글 텍스트 목록을 반환하는 메서드 추가
+	getFilteredKoreanTexts(): string[] {
+		return this.koreanTexts
+			.filter(item => !this.excludedTexts.has(item.label))
+			.map(item => item.label);
 	}
 }
 
@@ -139,17 +155,17 @@ class I18nItem extends vscode.TreeItem {
 
 	constructor(
 		public readonly label: string,
-		public readonly type: 'korean' | 'i18n' | 'start' | 'stop' | 'refresh' | 'pending-section' | 'completed-section' | 'button-container' | 'control-buttons',
+		public readonly type: 'korean' | 'i18n' | 'start' | 'stop' | 'refresh' | 'pending-section' | 'completed-section' | 'button-container' | 'control-buttons' | 'convert-button',
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState
 	) {
 		super(label, collapsibleState);
 		
 		if (type === 'korean') {
 			this.iconPath = new vscode.ThemeIcon('text');
-			this.description = '한글 텍스트';
+			this.description = 'Korean text';
 		} else if (type === 'i18n') {
 			this.iconPath = new vscode.ThemeIcon('check');
-			this.description = 'i18n 적용됨';
+			this.description = 'i18n applied';
 		}
 	}
 }
@@ -165,11 +181,6 @@ let currentI18nRanges: { start: number, end: number, text: string }[] = [];
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "i18n-manager" is now active!');
-
 	// TreeView 데이터 프로바이더 생성
 	treeDataProvider = new I18nTreeDataProvider();
 	vscode.window.createTreeView('i18nManager', { treeDataProvider });
@@ -190,6 +201,9 @@ export function activate(context: vscode.ExtensionContext) {
 	// 새로고침 명령어 등록
 	const refreshCommand = vscode.commands.registerCommand('i18n-manager.refresh', () => {
 		if (isMonitoring) {
+			// 사용자 제외 목록 초기화
+			treeDataProvider.clearExcludedTexts();
+			
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
 				extractKoreanTextsFromEditor(editor);
@@ -201,7 +215,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const excludeCommand = vscode.commands.registerCommand('i18n-manager.exclude', (item: I18nItem) => {
 		if (item.type === 'korean') {
 			treeDataProvider.excludeText(item.label);
-			vscode.window.showInformationMessage(`"${item.label}"을(를) 제외 목록에 추가했습니다.`);
 		}
 	});
 
@@ -209,7 +222,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const includeCommand = vscode.commands.registerCommand('i18n-manager.include', (item: I18nItem) => {
 		if (item.type === 'korean') {
 			treeDataProvider.includeText(item.label);
-			vscode.window.showInformationMessage(`"${item.label}"을(를) 다시 포함했습니다.`);
 		}
 	});
 
@@ -220,13 +232,64 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	// 변환 미리보기 명령어 등록
+	const previewCommand = vscode.commands.registerCommand('i18n-manager.previewConversion', () => {
+		const filteredTexts = treeDataProvider.getFilteredKoreanTexts();
+		
+		if (filteredTexts.length === 0) {
+			vscode.window.showInformationMessage('변환할 한글 텍스트가 없습니다.');
+			return;
+		}
+		
+		// 범위 정보도 함께 전달
+		const ranges = currentKoreanRanges.filter(range => 
+			!treeDataProvider.getExcludedTexts().has(range.text)
+		);
+		
+		// 변환 미리보기 표시
+		highlightConversionTargets(filteredTexts, ranges);
+	});
+
+	// 미리보기 제거 명령어 등록
+	const clearPreviewCommand = vscode.commands.registerCommand('i18n-manager.clearPreview', () => {
+		clearConversionPreview();
+	});
+
+	// 전체 변환 명령어 등록
+	const convertAllCommand = vscode.commands.registerCommand('i18n-manager.convertAll', async () => {
+		const filteredTexts = treeDataProvider.getFilteredKoreanTexts();
+		
+		if (filteredTexts.length === 0) {
+			vscode.window.showInformationMessage('변환할 한글 텍스트가 없습니다.');
+			return;
+		}
+		
+		// 범위 정보도 함께 전달
+		const ranges = currentKoreanRanges.filter(range => 
+			!treeDataProvider.getExcludedTexts().has(range.text)
+		);
+		
+		await applyConversionFromPreview(filteredTexts, ranges);
+		
+		// 변환 후 새로고침
+		if (isMonitoring) {
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				extractKoreanTextsFromEditor(editor);
+			}
+		}
+	});
+
 	context.subscriptions.push(
 		startCommand,
 		stopCommand,
 		refreshCommand,
 		excludeCommand,
 		includeCommand,
-		goToTextCommand
+		goToTextCommand,
+		previewCommand,
+		clearPreviewCommand,
+		convertAllCommand
 	);
 }
 
@@ -287,8 +350,6 @@ function startMonitoring(): void {
 		onDidChangeActiveTextEditor,
 		onDidChangeTextDocument
 	};
-
-	vscode.window.showInformationMessage('i18n Manager가 시작되었습니다.');
 }
 
 // 모니터링 중지
@@ -321,11 +382,12 @@ function stopMonitoring(): void {
 	// 패널 비우기
 	treeDataProvider.updateData([]);
 
+	// 사용자 제외 목록 초기화
+	treeDataProvider.clearExcludedTexts();
+
 	// 전역 변수 초기화
 	currentKoreanRanges = [];
 	currentI18nRanges = [];
-
-	vscode.window.showInformationMessage('i18n Manager가 중지되었습니다.');
 }
 
 // 한글 텍스트 추출 함수
@@ -372,7 +434,7 @@ function goToTextLocation(text: string): void {
 	const targetRange = allRanges.find(range => range.text === text);
 	
 	if (!targetRange) {
-		vscode.window.showWarningMessage(`"${text}"를 찾을 수 없습니다.`);
+		vscode.window.showWarningMessage(`"${text}"을(를) 찾을 수 없습니다.`);
 		return;
 	}
 
