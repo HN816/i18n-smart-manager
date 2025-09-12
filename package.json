@@ -1,7 +1,7 @@
 {
   "name": "i18n-manager",
-  "displayName": "i18n-manager",
-  "description": "",
+  "displayName": "i18n Manager",
+  "description": "한글 텍스트 추출 및 i18n 관리 익스텐션",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.103.0"
@@ -14,10 +14,79 @@
   "contributes": {
     "commands": [
       {
-        "command": "i18n-manager.helloWorld",
-        "title": "Hello World"
+        "command": "i18n-manager.start",
+        "title": "Start",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "i18n-manager.stop",
+        "title": "Stop",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "i18n-manager.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "i18n-manager.exclude",
+        "title": "제외하기",
+        "icon": "$(x)"
+      },
+      {
+        "command": "i18n-manager.include",
+        "title": "다시 포함하기",
+        "icon": "$(check)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "i18n-manager.start",
+          "when": "view == i18nManager && !i18nManager.isActive",
+          "group": "navigation"
+        },
+        {
+          "command": "i18n-manager.stop",
+          "when": "view == i18nManager && i18nManager.isActive",
+          "group": "navigation"
+        },
+        {
+          "command": "i18n-manager.refresh",
+          "when": "view == i18nManager",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "i18n-manager.exclude",
+          "when": "view == i18nManager && viewItem == korean-text",
+          "group": "inline"
+        },
+        {
+          "command": "i18n-manager.include",
+          "when": "view == i18nManager && viewItem == excluded-text",
+          "group": "inline"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "i18n-manager",
+          "title": "i18n Manager",
+          "icon": "$(globe)"
+        }
+      ]
+    },
+    "views": {
+      "i18n-manager": [
+        {
+          "id": "i18nManager",
+          "name": "i18n Manager"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "yarn run compile",
