@@ -5,6 +5,7 @@ import { extractKoreanTexts } from './korean-extractor';
 import { TextHighlighter } from './highlighter';
 import { highlightConversionTargets, clearConversionPreview, applyConversionFromPreview } from './convert';
 import { generateLocalesJson, showLocalesGenerationDialog } from './locales-generator';
+import { uploadLocalesToSpreadsheet } from './spreadsheet-manager';
 
 // TreeView 데이터 프로바이더
 class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
@@ -292,6 +293,9 @@ export function activate(context: vscode.ExtensionContext) {
 		await showLocalesGenerationDialog(filteredTexts); // 언어 선택 다이얼로그 표시
 	});
 
+	// 스프레드시트 업로드 명령어 등록
+	const uploadToSpreadsheetCommand = vscode.commands.registerCommand('i18n-manager.uploadToSpreadsheet', uploadLocalesToSpreadsheet);
+
 	// 모든 명령어를 context에 등록
 	context.subscriptions.push(
 		startCommand,
@@ -304,7 +308,8 @@ export function activate(context: vscode.ExtensionContext) {
 		clearPreviewCommand,
 		convertAllCommand,
 		addSelectedCommand,
-		generateLocalesCommand  // 새로 추가
+		generateLocalesCommand,
+		uploadToSpreadsheetCommand
 	);
 }
 

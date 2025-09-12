@@ -11,6 +11,9 @@
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
+  "dependencies": {
+    "google-spreadsheet": "^3.3.0"
+  },
   "contributes": {
     "commands": [
       {
@@ -78,6 +81,12 @@
         "title": "locales 파일 생성",
         "description": "I18n Manager: Generate locales files",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "i18n-manager.uploadToSpreadsheet",
+        "title": "Upload Locales to Google Sheets",
+        "description": "I18n Manager: Upload locales files to Google Sheets",
+        "icon": "$(go-to-file)"
       }
     ],
     "keybindings": [
@@ -113,6 +122,16 @@
           "command": "i18n-manager.convertAll",
           "when": "view == i18nManager && i18nManager.isActive",
           "group": "navigation@5"
+        },
+        {
+            "command": "i18n-manager.generateLocales",
+            "when": "view == i18nManager && i18nManager.isActive",
+            "group": "navigation@6"
+        },
+        {
+            "command": "i18n-manager.uploadToSpreadsheet",
+            "when": "view == i18nManager",
+            "group": "navigation@7"
         }
       ],
       "view/item/context": [
@@ -174,6 +193,21 @@
           "type": "string",
           "default": "",
           "description": "locales 파일 저장 경로 (비어있으면 프로젝트 루트에 저장)"
+        },
+        "i18nManager.spreadsheet.googleApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "구글 API 키 (스프레드시트 접근용)"
+        },
+        "i18nManager.spreadsheet.serviceAccountCredentials": {
+            "type": "object",
+            "default": null,
+            "description": "Google Service Account 인증 정보 (JSON 형태)"
+        },
+        "i18nManager.spreadsheet.spreadsheetId": {
+            "type": "string",
+            "default": "",
+            "description": "구글 스프레드시트 ID"
         }
       }
     }
@@ -195,6 +229,7 @@
     "eslint": "^9.34.0",
     "typescript": "^5.9.2",
     "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "@types/google-spreadsheet": "^3.3.0"
   }
 }

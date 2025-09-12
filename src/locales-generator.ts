@@ -118,7 +118,11 @@ export async function generateLocalesJson(texts: string[], language: string = 'k
 			continue; // 기존 키는 건너뛰기
 		}
 
-		// 중복 키 처리 제거 - 같은 텍스트는 같은 키 사용
+		// 중복 키 처리 - 같은 텍스트는 같은 키 사용
+		if (usedKeys.has(key)) {
+			skippedKeys.push(key);
+			continue; // 이미 처리된 키는 건너뛰기
+		}
 		usedKeys.add(key);
 		newKeys.push(key);
 
