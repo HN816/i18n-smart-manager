@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { extractKoreanTexts } from './korean-extractor';
 import { TextHighlighter } from './highlighter';
 import { highlightConversionTargets, clearConversionPreview, applyConversionFromPreview } from './convert';
+import { generateLocalesJson } from './locales-generator';
 
 // TreeView 데이터 프로바이더
 class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
@@ -285,6 +286,12 @@ export function activate(context: vscode.ExtensionContext) {
 		addSelectedTextToPending();
 	});
 
+	// locales.json 생성 명령어 등록
+	const generateLocalesCommand = vscode.commands.registerCommand('i18n-manager.generateLocales', async () => {
+		const filteredTexts = treeDataProvider.getFilteredKoreanTexts();
+		await generateLocalesJson(filteredTexts, 'ko'); // 한국어로 기본 설정
+	});
+
 	// 모든 명령어를 context에 등록
 	context.subscriptions.push(
 		startCommand,
@@ -296,7 +303,8 @@ export function activate(context: vscode.ExtensionContext) {
 		previewCommand,
 		clearPreviewCommand,
 		convertAllCommand,
-		addSelectedCommand
+		addSelectedCommand,
+		generateLocalesCommand  // 새로 추가
 	);
 }
 

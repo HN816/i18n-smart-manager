@@ -72,6 +72,12 @@
         "title": "선택된 텍스트 추가",
         "description": "I18n Manager: Add selected text to pending list",
         "icon": "$(add)"
+      },
+      {
+        "command": "i18n-manager.generateLocales",
+        "title": "locales.ko.json 생성",
+        "description": "I18n Manager: Generate Korean locales file",
+        "icon": "$(file-code)"
       }
     ],
     "keybindings": [
@@ -99,9 +105,14 @@
           "group": "navigation@3"
         },
         {
-          "command": "i18n-manager.convertAll",
+          "command": "i18n-manager.generateLocales",
           "when": "view == i18nManager && i18nManager.isActive",
           "group": "navigation@4"
+        },
+        {
+          "command": "i18n-manager.convertAll",
+          "when": "view == i18nManager && i18nManager.isActive",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [

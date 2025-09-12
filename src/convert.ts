@@ -33,7 +33,7 @@ function executeCustomFunction(customCode: string, text: string): string {
 }
 
 // 텍스트에서 변수 추출 및 템플릿 생성
-function extractVariables(text: string): VariableInfo {
+export function extractVariables(text: string): VariableInfo {
 	const variables: string[] = [];
 	let template = text;
 	let index = 0;
