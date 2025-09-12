@@ -7,6 +7,31 @@ interface VariableInfo {
 	template: string;
 }
 
+// 커스텀 함수를 안전하게 실행하는 함수
+function executeCustomFunction(customCode: string, text: string): string {
+	try {
+		// 보안을 위해 Function 생성자 사용 (eval보다 안전)
+		const customFunction = new Function('text', `return (${customCode})(text);`);
+		const result = customFunction(text);
+		
+		// 결과가 문자열인지 확인
+		if (typeof result !== 'string') {
+			throw new Error('함수는 문자열을 반환해야 합니다.');
+		}
+		
+		return result;
+	} catch (error: any) {
+		// 에러 발생 시 기본 변환 사용
+		console.warn('커스텀 함수 실행 중 오류:', error);
+		vscode.window.showWarningMessage(`키 생성 함수 오류: ${error.message}. 기본 변환을 사용합니다.`);
+		
+		// 기본 변환 로직
+		return text
+			.replace(/\s+/g, '_')
+			.replace(/\./g, '#dot#');
+	}
+}
+
 // 텍스트에서 변수 추출 및 템플릿 생성
 function extractVariables(text: string): VariableInfo {
 	const variables: string[] = [];
@@ -38,11 +63,12 @@ function extractVariables(text: string): VariableInfo {
 	};
 }
 
-// 텍스트를 i18n 키로 변환하는 함수
+// 텍스트를 i18n 키로 변환하는 함수 (커스텀 함수 사용)
 export function convertToI18nKey(text: string): string {
-	return text
-		.replace(/\s+/g, '_')           // 띄어쓰기를 _로 변환
-		.replace(/\./g, '#dot#');        // 온점을 #dot#으로 변환
+	const config = vscode.workspace.getConfiguration('i18nManager.keyGeneration');
+	const customFunction = config.get<string>('customFunction', 'text => text.replace(/\\s+/g, \'_\').replace(/\\./g, \'#dot#\')');
+	
+	return executeCustomFunction(customFunction, text);
 }
 
 // 변수 포함 텍스트를 i18n 형태로 변환
