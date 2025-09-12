@@ -96,6 +96,26 @@ export function removeCommentsWithMapping(text: string): { processedText: string
 	return { processedText: newResult, positionMap: finalPositionMap };
 }
 
+// 괄호 매칭을 수동으로 처리하는 함수
+function findMatchingBracket(text: string, startIndex: number, openChar: string, closeChar: string): number {
+	let depth = 0;
+	let i = startIndex;
+	
+	while (i < text.length) {
+		if (text[i] === openChar) {
+			depth++;
+		} else if (text[i] === closeChar) {
+			depth--;
+			if (depth === 0) {
+				return i;
+			}
+		}
+		i++;
+	}
+	
+	return -1; // 매칭되는 괄호를 찾지 못함
+}
+
 // i18n 적용된 부분 찾기
 export function findI18nRanges(text: string): KoreanRange[] {
 	const i18nRanges: KoreanRange[] = [];
@@ -117,26 +137,40 @@ export function findI18nRanges(text: string): KoreanRange[] {
 		}
 	}
 	
-	// t('모든문자', [variables]) 패턴 찾기 - 변수 포함된 경우
-	const tWithVarsMatches = text.matchAll(/\bt\(['"`]([^'"`]*?)['"`],\s*\[[^\]]*\]\)/g);
-	for (const match of tWithVarsMatches) {
+	// t('모든문자', [variables]) 패턴 찾기 - 변수 포함된 경우 (플레이스홀더 {숫자} 포함)
+	// 수동으로 괄호 매칭 처리
+	const tWithVarsPattern = /\bt\(['"`]([^'"`]*?)['"`],\s*\[/g;
+	let match;
+	while ((match = tWithVarsPattern.exec(text)) !== null) {
 		const i18nText = match[1];
 		// 한글이 포함된 경우만 처리
 		if (/[가-힣]/.test(i18nText)) {
 			const start = match.index!;
-			const end = start + match[0].length;
+			// 배열의 시작 위치 찾기
+			const arrayStart = match.index! + match[0].length - 1; // '[' 위치
+			// 매칭되는 ']' 찾기
+			const arrayEnd = findMatchingBracket(text, arrayStart, '[', ']');
 			
-			// 중복 체크 - 같은 위치에 이미 있는지 확인
-			const isDuplicate = i18nRanges.some(range => 
-				range.start === start && range.end === end
-			);
-			
-			if (!isDuplicate) {
-				i18nRanges.push({
-					start: start,
-					end: end,
-					text: i18nText
-				});
+			if (arrayEnd !== -1) {
+				// 전체 함수 호출의 끝 찾기
+				const funcEnd = findMatchingBracket(text, start, '(', ')');
+				
+				if (funcEnd !== -1) {
+					const end = funcEnd + 1;
+					
+					// 중복 체크 - 같은 위치에 이미 있는지 확인
+					const isDuplicate = i18nRanges.some(range => 
+						range.start === start && range.end === end
+					);
+					
+					if (!isDuplicate) {
+						i18nRanges.push({
+							start: start,
+							end: end,
+							text: i18nText
+						});
+					}
+				}
 			}
 		}
 	}
@@ -165,26 +199,42 @@ export function findI18nRanges(text: string): KoreanRange[] {
 		}
 	}
 	
-	// {{ t('모든문자', [variables]) }} 패턴 찾기 - 변수 포함된 경우
-	const templateWithVarsMatches = text.matchAll(/\{\{\s*t\(['"`]([^'"`]*?)['"`],\s*\[[^\]]*\]\)\s*\}\}/g);
-	for (const match of templateWithVarsMatches) {
+	// {{ t('모든문자', [variables]) }} 패턴 찾기 - 변수 포함된 경우 (플레이스홀더 {숫자} 포함)
+	const templateWithVarsPattern = /\{\{\s*t\(['"`]([^'"`]*?)['"`],\s*\[/g;
+	while ((match = templateWithVarsPattern.exec(text)) !== null) {
 		const i18nText = match[1];
 		// 한글이 포함된 경우만 처리
 		if (/[가-힣]/.test(i18nText)) {
 			const start = match.index!;
-			const end = start + match[0].length;
+			// 배열의 시작 위치 찾기
+			const arrayStart = match.index! + match[0].length - 1; // '[' 위치
+			// 매칭되는 ']' 찾기
+			const arrayEnd = findMatchingBracket(text, arrayStart, '[', ']');
 			
-			// 중복 체크 - 같은 위치에 이미 있는지 확인
-			const isDuplicate = i18nRanges.some(range => 
-				range.start === start && range.end === end
-			);
-			
-			if (!isDuplicate) {
-				i18nRanges.push({
-					start: start,
-					end: end,
-					text: i18nText
-				});
+			if (arrayEnd !== -1) {
+				// 전체 함수 호출의 끝 찾기
+				const funcEnd = findMatchingBracket(text, start + 3, '(', ')'); // '{{ ' 다음부터
+				
+				if (funcEnd !== -1) {
+					// '}}' 찾기
+					const templateEnd = text.indexOf('}}', funcEnd + 1);
+					if (templateEnd !== -1) {
+						const end = templateEnd + 2;
+						
+						// 중복 체크 - 같은 위치에 이미 있는지 확인
+						const isDuplicate = i18nRanges.some(range => 
+							range.start === start && range.end === end
+						);
+						
+						if (!isDuplicate) {
+							i18nRanges.push({
+								start: start,
+								end: end,
+								text: i18nText
+							});
+						}
+					}
+				}
 			}
 		}
 	}
@@ -213,26 +263,42 @@ export function findI18nRanges(text: string): KoreanRange[] {
 		}
 	}
 	
-	// "t('모든문자', [variables])" 패턴 찾기 (따옴표로 감싸진 경우, 변수 포함)
-	const quotedWithVarsMatches = text.matchAll(/["'`]t\(['"`]([^'"`]*?)['"`],\s*\[[^\]]*\]\)["'`]/g);
-	for (const match of quotedWithVarsMatches) {
+	// "t('모든문자', [variables])" 패턴 찾기 (따옴표로 감싸진 경우, 변수 포함) (플레이스홀더 {숫자} 포함)
+	const quotedWithVarsPattern = /["'`]t\(['"`]([^'"`]*?)['"`],\s*\[/g;
+	while ((match = quotedWithVarsPattern.exec(text)) !== null) {
 		const i18nText = match[1];
 		// 한글이 포함된 경우만 처리
 		if (/[가-힣]/.test(i18nText)) {
 			const start = match.index!;
-			const end = start + match[0].length;
+			// 배열의 시작 위치 찾기
+			const arrayStart = match.index! + match[0].length - 1; // '[' 위치
+			// 매칭되는 ']' 찾기
+			const arrayEnd = findMatchingBracket(text, arrayStart, '[', ']');
 			
-			// 중복 체크 - 같은 위치에 이미 있는지 확인
-			const isDuplicate = i18nRanges.some(range => 
-				range.start === start && range.end === end
-			);
-			
-			if (!isDuplicate) {
-				i18nRanges.push({
-					start: start,
-					end: end,
-					text: i18nText
-				});
+			if (arrayEnd !== -1) {
+				// 전체 함수 호출의 끝 찾기
+				const funcEnd = findMatchingBracket(text, start + 1, '(', ')'); // 따옴표 다음부터
+				
+				if (funcEnd !== -1) {
+					// 닫는 따옴표 찾기
+					const quoteEnd = text.indexOf(text[start], funcEnd + 1);
+					if (quoteEnd !== -1) {
+						const end = quoteEnd + 1;
+						
+						// 중복 체크 - 같은 위치에 이미 있는지 확인
+						const isDuplicate = i18nRanges.some(range => 
+							range.start === start && range.end === end
+						);
+						
+						if (!isDuplicate) {
+							i18nRanges.push({
+								start: start,
+								end: end,
+								text: i18nText
+							});
+						}
+					}
+				}
 			}
 		}
 	}
