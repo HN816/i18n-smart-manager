@@ -117,6 +117,30 @@ export function findI18nRanges(text: string): KoreanRange[] {
 		}
 	}
 	
+	// t('모든문자', [variables]) 패턴 찾기 - 변수 포함된 경우
+	const tWithVarsMatches = text.matchAll(/\bt\(['"`]([^'"`]*?)['"`],\s*\[[^\]]*\]\)/g);
+	for (const match of tWithVarsMatches) {
+		const i18nText = match[1];
+		// 한글이 포함된 경우만 처리
+		if (/[가-힣]/.test(i18nText)) {
+			const start = match.index!;
+			const end = start + match[0].length;
+			
+			// 중복 체크 - 같은 위치에 이미 있는지 확인
+			const isDuplicate = i18nRanges.some(range => 
+				range.start === start && range.end === end
+			);
+			
+			if (!isDuplicate) {
+				i18nRanges.push({
+					start: start,
+					end: end,
+					text: i18nText
+				});
+			}
+		}
+	}
+	
 	// {{ t('모든문자') }} 패턴 찾기
 	const templateMatches = text.matchAll(/\{\{\s*t\(['"`]([^'"`]*?)['"`]\)\s*\}\}/g);
 	for (const match of templateMatches) {
@@ -141,9 +165,57 @@ export function findI18nRanges(text: string): KoreanRange[] {
 		}
 	}
 	
+	// {{ t('모든문자', [variables]) }} 패턴 찾기 - 변수 포함된 경우
+	const templateWithVarsMatches = text.matchAll(/\{\{\s*t\(['"`]([^'"`]*?)['"`],\s*\[[^\]]*\]\)\s*\}\}/g);
+	for (const match of templateWithVarsMatches) {
+		const i18nText = match[1];
+		// 한글이 포함된 경우만 처리
+		if (/[가-힣]/.test(i18nText)) {
+			const start = match.index!;
+			const end = start + match[0].length;
+			
+			// 중복 체크 - 같은 위치에 이미 있는지 확인
+			const isDuplicate = i18nRanges.some(range => 
+				range.start === start && range.end === end
+			);
+			
+			if (!isDuplicate) {
+				i18nRanges.push({
+					start: start,
+					end: end,
+					text: i18nText
+				});
+			}
+		}
+	}
+	
 	// "t('모든문자')" 패턴 찾기 (따옴표로 감싸진 경우)
 	const quotedMatches = text.matchAll(/["'`]t\(['"`]([^'"`]*?)['"`]\)["'`]/g);
 	for (const match of quotedMatches) {
+		const i18nText = match[1];
+		// 한글이 포함된 경우만 처리
+		if (/[가-힣]/.test(i18nText)) {
+			const start = match.index!;
+			const end = start + match[0].length;
+			
+			// 중복 체크 - 같은 위치에 이미 있는지 확인
+			const isDuplicate = i18nRanges.some(range => 
+				range.start === start && range.end === end
+			);
+			
+			if (!isDuplicate) {
+				i18nRanges.push({
+					start: start,
+					end: end,
+					text: i18nText
+				});
+			}
+		}
+	}
+	
+	// "t('모든문자', [variables])" 패턴 찾기 (따옴표로 감싸진 경우, 변수 포함)
+	const quotedWithVarsMatches = text.matchAll(/["'`]t\(['"`]([^'"`]*?)['"`],\s*\[[^\]]*\]\)["'`]/g);
+	for (const match of quotedWithVarsMatches) {
 		const i18nText = match[1];
 		// 한글이 포함된 경우만 처리
 		if (/[가-힣]/.test(i18nText)) {
