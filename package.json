@@ -208,6 +208,25 @@
           "type": "string",
           "default": "",
           "description": "구글 스프레드시트 ID"
+        },
+        "i18nManager.locales.enabledLanguages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ko",
+              "en",
+              "zh",
+              "ja"
+            ]
+          },
+          "default": [
+            "ko",
+            "en",
+            "zh",
+            "ja"
+          ],
+          "description": "활성화할 언어들 (한국어, 영어, 중국어, 일본어 중 선택)"
         }
       }
     }
