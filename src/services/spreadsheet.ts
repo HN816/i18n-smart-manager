@@ -204,41 +204,37 @@ class SpreadsheetService {
   async uploadMultipleLocalesToSheet(localesFilePaths: string[]): Promise<void> {
     try {
       // 스프레드시트 접근 가능 여부 확인
-      const hasAccess = await this.checkSpreadsheetAccess();
-      if (!hasAccess) {
-        throw new Error(
-          '스프레드시트에 접근할 수 없습니다. 스프레드시트 ID와 Service Account 인증 정보를 확인해주세요.',
-        );
+      if (!(await this.checkSpreadsheetAccess())) {
+        throw new Error('스프레드시트에 접근할 수 없습니다.');
       }
 
-      // 모든 언어 데이터를 합치기
+      // 업로드할 데이터 준비
       const combinedData = this.combineMultipleLocales(localesFilePaths);
 
-      // 스프레드시트에 데이터 업로드 (덮어쓰기)
+      // 스프레드시트 업데이트
       await this.updateSpreadsheet(combinedData);
 
-      vscode.window.showInformationMessage(`✅ 모든 locales가 스프레드시트에 업로드되었습니다!`);
+      vscode.window.showInformationMessage('✅ 스프레드시트 업로드가 완료되었습니다.');
     } catch (error) {
       console.error('스프레드시트 업로드 오류:', error);
-      vscode.window.showErrorMessage(
-        `❌ 스프레드시트 업로드 실패: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      throw new Error(`스프레드시트 업로드 실패: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  // 여러 언어 파일의 데이터를 합치기
+  // 여러 언어 파일의 데이터를 합치기 (선택한 파일 기준으로 헤더 생성)
   private combineMultipleLocales(localesFilePaths: string[]): any[][] {
     const combinedData: any[][] = [];
     const allKeys = new Set<string>();
     const languageData: { [key: string]: { [language: string]: string } } = {};
-
-    // 헤더 행 추가 (중국어 컬럼 추가)
-    combinedData.push(['Key', 'Korean', 'English', 'Chinese', 'Japanese']);
+    const availableLanguages = new Set<string>(); // 실제로 존재하는 언어들
 
     // 각 파일에서 데이터 읽기
     localesFilePaths.forEach((filePath) => {
       const fileName = path.basename(filePath);
       const language = fileName.match(/locales\.(\w+)\.json/)?.[1] || 'ko';
+
+      // 실제로 존재하는 언어 추가
+      availableLanguages.add(language);
 
       try {
         const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -256,23 +252,40 @@ class SpreadsheetService {
       }
     });
 
+    // 동적 헤더 생성 (선택한 파일에 있는 언어만)
+    const headers = ['Key'];
+    const languageOrder = ['ko', 'en', 'zh', 'ja']; // 원하는 순서
+    const orderedAvailableLanguages = languageOrder.filter((lang) => availableLanguages.has(lang));
+
+    orderedAvailableLanguages.forEach((lang) => {
+      switch (lang) {
+        case 'ko':
+          headers.push('Korean');
+          break;
+        case 'en':
+          headers.push('English');
+          break;
+        case 'zh':
+          headers.push('Chinese');
+          break;
+        case 'ja':
+          headers.push('Japanese');
+          break;
+      }
+    });
+
+    combinedData.push(headers);
+
     // 모든 키에 대해 행 생성
     allKeys.forEach((key) => {
-      const row = ['', '', '', '', '']; // [Key, Korean, English, Chinese, Japanese]
+      const row = new Array(headers.length).fill(''); // 헤더 길이에 맞춰 동적 배열 생성
 
       const data = languageData[key];
-      if (data.ko) {
-        row[1] = data.ko;
-      }
-      if (data.en) {
-        row[2] = data.en;
-      }
-      if (data.zh) {
-        row[3] = data.zh;
-      }
-      if (data.ja) {
-        row[4] = data.ja;
-      }
+      orderedAvailableLanguages.forEach((lang, index) => {
+        if (data[lang]) {
+          row[index + 1] = data[lang]; // +1은 Key 컬럼 때문
+        }
+      });
 
       row[0] = key; // 키는 항상 첫 번째 컬럼
       combinedData.push(row);
