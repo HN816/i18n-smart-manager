@@ -24,7 +24,7 @@ interface SpreadsheetConfig {
   valueColumn: string;
 }
 
-export class SpreadsheetManager {
+class SpreadsheetService {
   private credentials: ServiceAccountCredentials;
   private config: SpreadsheetConfig;
 
@@ -301,41 +301,6 @@ export class SpreadsheetManager {
   }
 }
 
-// 스프레드시트 설정 다이얼로그
-export async function showSpreadsheetConfigDialog(): Promise<SpreadsheetConfig | undefined> {
-  const spreadsheetId = await vscode.window.showInputBox({
-    prompt: '구글 스프레드시트 ID를 입력하세요',
-    placeHolder: '예: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
-    validateInput: (value) => {
-      if (!value || value.trim().length === 0) {
-        return '스프레드시트 ID는 필수입니다';
-      }
-      return null;
-    },
-  });
-
-  if (!spreadsheetId) {
-    return undefined;
-  }
-
-  const sheetName = await vscode.window.showInputBox({
-    prompt: '시트 이름을 입력하세요',
-    placeHolder: '예: Locales',
-    value: 'Locales',
-  });
-
-  if (!sheetName) {
-    return undefined;
-  }
-
-  return {
-    spreadsheetId: spreadsheetId.trim(),
-    sheetName: sheetName.trim(),
-    keyColumn: 'A',
-    valueColumn: 'B',
-  };
-}
-
 // 스프레드시트 업로드 메인 함수
 export async function uploadLocalesToSpreadsheet(): Promise<void> {
   try {
@@ -402,11 +367,11 @@ export async function uploadLocalesToSpreadsheet(): Promise<void> {
       return;
     }
 
-    // 스프레드시트 매니저 생성
-    const manager = new SpreadsheetManager(credentials, spreadsheetConfig);
+    // 스프레드시트 서비스 생성
+    const service = new SpreadsheetService(credentials, spreadsheetConfig);
 
     // 모든 파일을 한 번에 업로드
-    await manager.uploadMultipleLocalesToSheet(localesFiles.map((file) => file.fsPath));
+    await service.uploadMultipleLocalesToSheet(localesFiles.map((file) => file.fsPath));
   } catch (error) {
     console.error('스프레드시트 업로드 오류:', error);
     vscode.window.showErrorMessage(

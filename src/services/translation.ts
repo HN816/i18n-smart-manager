@@ -1,5 +1,3 @@
-import * as vscode from 'vscode';
-
 // 번역 서비스 인터페이스
 interface TranslationService {
   translate(text: string, targetLang: string): Promise<string>;
@@ -51,25 +49,55 @@ class DeepLTranslationService implements TranslationService {
 }
 
 // 번역 서비스 팩토리
-export class TranslationServiceFactory {
+class TranslationServiceFactory {
   static createService(provider: string, apiKey: string): TranslationService {
     if (!apiKey) {
       throw new Error('DeepL API 키가 필요합니다.');
     }
 
-    return new DeepLTranslationService(apiKey);
+    switch (provider.toLowerCase()) {
+      case 'deepl':
+        return new DeepLTranslationService(apiKey);
+      default:
+        throw new Error(`지원하지 않는 번역 서비스: ${provider}`);
+    }
   }
 }
 
-// 번역 함수
-export async function translateText(
-  text: string,
-  targetLang: string,
-  provider: string,
-  apiKey: string,
-): Promise<string> {
-  const service = TranslationServiceFactory.createService(provider, apiKey);
-  return await service.translate(text, targetLang);
+// 번역 매니저 클래스
+class TranslationManager {
+  private service: TranslationService;
+
+  constructor(provider: string, apiKey: string) {
+    this.service = TranslationServiceFactory.createService(provider, apiKey);
+  }
+
+  async translateTexts(
+    texts: string[],
+    targetLang: string,
+    progressCallback?: (current: number, total: number) => void,
+  ): Promise<string[]> {
+    const results: string[] = [];
+
+    for (let i = 0; i < texts.length; i++) {
+      const text = texts[i];
+
+      // 진행 상황 콜백 호출
+      if (progressCallback) {
+        progressCallback(i + 1, texts.length);
+      }
+
+      try {
+        const translated = await this.service.translate(text, targetLang);
+        results.push(translated);
+      } catch (error) {
+        console.error(`번역 실패 (${text}):`, error);
+        results.push(text); // 번역 실패 시 원본 반환
+      }
+    }
+
+    return results;
+  }
 }
 
 // 여러 텍스트를 일괄 번역하는 함수
@@ -80,25 +108,6 @@ export async function translateTexts(
   apiKey: string,
   progressCallback?: (current: number, total: number) => void,
 ): Promise<string[]> {
-  const service = TranslationServiceFactory.createService(provider, apiKey);
-  const results: string[] = [];
-
-  for (let i = 0; i < texts.length; i++) {
-    const text = texts[i];
-
-    // 진행 상황 콜백 호출
-    if (progressCallback) {
-      progressCallback(i + 1, texts.length);
-    }
-
-    try {
-      const translated = await service.translate(text, targetLang);
-      results.push(translated);
-    } catch (error) {
-      console.error(`번역 실패 (${text}):`, error);
-      results.push(text); // 번역 실패 시 원본 반환
-    }
-  }
-
-  return results;
+  const service = new TranslationManager(provider, apiKey);
+  return service.translateTexts(texts, targetLang, progressCallback);
 }
