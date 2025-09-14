@@ -3,27 +3,15 @@
 import * as vscode from 'vscode';
 import { extractKoreanTexts } from './services/korean-extraction';
 import { highlightText, clearDecorations, clearAllDecorations } from './services/text-highlighting';
-import {
-  highlightConversionTargets,
-  clearConversionPreview,
-  applyConversionFromPreview,
-} from './services/text-conversion';
-import { showLocalesGenerationDialog } from './services/locale-generation';
-import { uploadLocalesToSpreadsheet } from './services/spreadsheet';
-import { I18nTreeDataProvider, I18nItem } from './providers';
-
-// 전역 변수
-let treeDataProvider: I18nTreeDataProvider;
-let isMonitoring: boolean = false;
-let debounceTimer: NodeJS.Timeout | undefined;
-let currentKoreanRanges: { start: number; end: number; text: string }[] = [];
-let currentI18nRanges: { start: number; end: number; text: string }[] = [];
+import { I18nTreeDataProvider } from './providers';
+import { stateManager } from './state';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
   // TreeView 데이터 프로바이더 생성
-  treeDataProvider = new I18nTreeDataProvider(updateHighlights);
+  const treeDataProvider = new I18nTreeDataProvider(updateHighlights);
+  stateManager.setTreeDataProvider(treeDataProvider);
   vscode.window.createTreeView('i18nManager', { treeDataProvider });
 
   // Start 명령어 등록
@@ -38,9 +26,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 새로고침 명령어 등록
   const refreshCommand = vscode.commands.registerCommand('i18n-manager.refresh', () => {
-    if (isMonitoring) {
+    if (stateManager.isMonitoring()) {
       // 사용자 제외 목록 초기화
-      treeDataProvider.clearExcludedTexts();
+      stateManager.getTreeDataProvider().clearExcludedTexts();
 
       const editor = vscode.window.activeTextEditor;
       if (editor) {
@@ -50,21 +38,21 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // 텍스트 제외 명령어 등록
-  const excludeCommand = vscode.commands.registerCommand('i18n-manager.exclude', (item: I18nItem) => {
+  const excludeCommand = vscode.commands.registerCommand('i18n-manager.exclude', (item: any) => {
     if (item.type === 'korean') {
-      treeDataProvider.excludeText(item.label);
+      stateManager.getTreeDataProvider().excludeText(item.label);
     }
   });
 
   // 텍스트 포함 명령어 등록
-  const includeCommand = vscode.commands.registerCommand('i18n-manager.include', (item: I18nItem) => {
+  const includeCommand = vscode.commands.registerCommand('i18n-manager.include', (item: any) => {
     if (item.type === 'korean') {
-      treeDataProvider.includeText(item.label);
+      stateManager.getTreeDataProvider().includeText(item.label);
     }
   });
 
   // 텍스트 위치로 이동 명령어 등록
-  const goToTextCommand = vscode.commands.registerCommand('i18n-manager.goToText', (item: I18nItem) => {
+  const goToTextCommand = vscode.commands.registerCommand('i18n-manager.goToText', (item: any) => {
     if (item.type === 'korean' || item.type === 'i18n') {
       goToTextLocation(item.label);
     }
@@ -72,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 변환 미리보기 명령어 등록
   const previewCommand = vscode.commands.registerCommand('i18n-manager.previewConversion', () => {
-    const filteredTexts = treeDataProvider.getFilteredKoreanTexts();
+    const filteredTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
 
     if (filteredTexts.length === 0) {
       vscode.window.showInformationMessage('변환할 한글 텍스트가 없습니다.');
@@ -80,20 +68,24 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     // 범위 정보도 함께 전달
-    const ranges = currentKoreanRanges.filter((range) => !treeDataProvider.getExcludedTexts().has(range.text));
+    const ranges = stateManager
+      .getKoreanRanges()
+      .filter((range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text));
 
     // 변환 미리보기 표시
+    const { highlightConversionTargets } = require('./services/text-conversion');
     highlightConversionTargets(filteredTexts, ranges);
   });
 
   // 미리보기 제거 명령어 등록
   const clearPreviewCommand = vscode.commands.registerCommand('i18n-manager.clearPreview', () => {
+    const { clearConversionPreview } = require('./services/text-conversion');
     clearConversionPreview();
   });
 
   // 전체 변환 명령어 등록
   const convertAllCommand = vscode.commands.registerCommand('i18n-manager.convertAll', async () => {
-    const filteredTexts = treeDataProvider.getFilteredKoreanTexts();
+    const filteredTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
 
     if (filteredTexts.length === 0) {
       vscode.window.showInformationMessage('변환할 한글 텍스트가 없습니다.');
@@ -101,12 +93,15 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     // 범위 정보도 함께 전달
-    const ranges = currentKoreanRanges.filter((range) => !treeDataProvider.getExcludedTexts().has(range.text));
+    const ranges = stateManager
+      .getKoreanRanges()
+      .filter((range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text));
 
+    const { applyConversionFromPreview } = require('./services/text-conversion');
     await applyConversionFromPreview(filteredTexts, ranges);
 
     // 변환 후 새로고침
-    if (isMonitoring) {
+    if (stateManager.isMonitoring()) {
       const editor = vscode.window.activeTextEditor;
       if (editor) {
         extractKoreanTextsFromEditor(editor);
@@ -121,15 +116,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   // locales.json 생성 명령어 등록
   const generateLocalesCommand = vscode.commands.registerCommand('i18n-manager.generateLocales', async () => {
-    const filteredTexts = treeDataProvider.getFilteredKoreanTexts();
-    await showLocalesGenerationDialog(filteredTexts); // 언어 선택 다이얼로그 표시
+    const filteredTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
+    const { showLocalesGenerationDialog } = require('./services/locale-generation');
+    await showLocalesGenerationDialog(filteredTexts);
   });
 
   // 스프레드시트 업로드 명령어 등록
-  const uploadToSpreadsheetCommand = vscode.commands.registerCommand(
-    'i18n-manager.uploadToSpreadsheet',
-    uploadLocalesToSpreadsheet,
-  );
+  const uploadToSpreadsheetCommand = vscode.commands.registerCommand('i18n-manager.uploadToSpreadsheet', () => {
+    const { uploadLocalesToSpreadsheet } = require('./services/spreadsheet');
+    uploadLocalesToSpreadsheet();
+  });
 
   // 모든 명령어를 context에 등록
   context.subscriptions.push(
@@ -150,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 // 하이라이트 업데이트 함수
 function updateHighlights(): void {
-  if (!isMonitoring) {
+  if (!stateManager.isMonitoring()) {
     return;
   }
 
@@ -160,22 +156,21 @@ function updateHighlights(): void {
   }
 
   // 제외된 텍스트를 제외한 한글 범위들만 필터링
-  const filteredKoreanRanges = currentKoreanRanges.filter(
-    (range) => !treeDataProvider.getExcludedTexts().has(range.text),
-  );
+  const filteredKoreanRanges = stateManager
+    .getKoreanRanges()
+    .filter((range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text));
 
   // 하이라이트 적용
-  highlightText(editor, filteredKoreanRanges, currentI18nRanges);
+  highlightText(editor, filteredKoreanRanges, stateManager.getI18nRanges());
 }
 
 // 모니터링 시작
 function startMonitoring(): void {
-  if (isMonitoring) {
+  if (stateManager.isMonitoring()) {
     return;
   }
 
-  isMonitoring = true;
-  treeDataProvider.setActive(true);
+  stateManager.setMonitoring(true);
 
   // 현재 활성 편집기에서 한글 텍스트 추출
   const extractFromCurrentEditor = () => {
@@ -187,7 +182,7 @@ function startMonitoring(): void {
 
   // 활성 편집기가 변경될 때마다 실행
   const onDidChangeActiveTextEditor = vscode.window.onDidChangeActiveTextEditor((editor) => {
-    if (editor && isMonitoring) {
+    if (editor && stateManager.isMonitoring()) {
       extractKoreanTextsFromEditor(editor);
     }
   });
@@ -195,46 +190,34 @@ function startMonitoring(): void {
   // 문서가 변경될 때마다 실행 (디바운스 적용)
   const onDidChangeTextDocument = vscode.workspace.onDidChangeTextDocument((event) => {
     const editor = vscode.window.activeTextEditor;
-    if (editor && editor.document === event.document && isMonitoring) {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
+    if (editor && editor.document === event.document && stateManager.isMonitoring()) {
+      stateManager.clearDebounceTimer();
+      const timer = setTimeout(() => {
         extractKoreanTextsFromEditor(editor);
       }, 500); // 500ms 디바운스
+      stateManager.setDebounceTimer(timer);
     }
   });
 
   // 초기 실행
   extractFromCurrentEditor();
 
-  // 이벤트 리스너들을 전역으로 저장 (나중에 정리하기 위해)
-  (global as any).i18nEventListeners = {
+  // 이벤트 리스너들을 저장
+  stateManager.setEventListeners({
     onDidChangeActiveTextEditor,
     onDidChangeTextDocument,
-  };
+  });
 }
 
 // 모니터링 중지
 function stopMonitoring(): void {
-  if (!isMonitoring) {
+  if (!stateManager.isMonitoring()) {
     return;
   }
 
-  isMonitoring = false;
-  treeDataProvider.setActive(false);
-
-  // 이벤트 리스너들 정리
-  const listeners = (global as any).i18nEventListeners;
-  if (listeners) {
-    listeners.onDidChangeActiveTextEditor.dispose();
-    listeners.onDidChangeTextDocument.dispose();
-    (global as any).i18nEventListeners = null;
-  }
-
-  // 타이머 정리
-  if (debounceTimer) {
-    clearTimeout(debounceTimer);
-    debounceTimer = undefined;
-  }
+  stateManager.setMonitoring(false);
+  stateManager.clearEventListeners();
+  stateManager.clearDebounceTimer();
 
   // 하이라이트 제거
   const editor = vscode.window.activeTextEditor;
@@ -242,20 +225,13 @@ function stopMonitoring(): void {
     clearDecorations(editor);
   }
 
-  // 패널 비우기
-  treeDataProvider.updateData([]);
-
-  // 사용자 제외 목록 초기화
-  treeDataProvider.clearExcludedTexts();
-
-  // 전역 변수 초기화
-  currentKoreanRanges = [];
-  currentI18nRanges = [];
+  // 상태 초기화
+  stateManager.reset();
 }
 
 // 한글 텍스트 추출 함수
 function extractKoreanTextsFromEditor(editor: vscode.TextEditor): void {
-  if (!isMonitoring) {
+  if (!stateManager.isMonitoring()) {
     return;
   }
 
@@ -266,9 +242,9 @@ function extractKoreanTextsFromEditor(editor: vscode.TextEditor): void {
   // 한글 텍스트 추출
   const { koreanRanges, i18nRanges } = extractKoreanTexts(text, fileName);
 
-  // 전역 변수에 저장
-  currentKoreanRanges = koreanRanges;
-  currentI18nRanges = i18nRanges;
+  // 상태에 저장
+  stateManager.setKoreanRanges(koreanRanges);
+  stateManager.setI18nRanges(i18nRanges);
 
   // TreeView에 표시할 데이터 준비
   const allTexts = [
@@ -277,11 +253,13 @@ function extractKoreanTextsFromEditor(editor: vscode.TextEditor): void {
   ];
 
   // 하이라이트 적용 (제외된 텍스트 제외)
-  const filteredKoreanRanges = koreanRanges.filter((range) => !treeDataProvider.getExcludedTexts().has(range.text));
+  const filteredKoreanRanges = koreanRanges.filter(
+    (range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text),
+  );
   highlightText(editor, filteredKoreanRanges, i18nRanges);
 
   // TreeView 업데이트
-  treeDataProvider.updateData(allTexts);
+  stateManager.getTreeDataProvider().updateData(allTexts);
 }
 
 // 텍스트 위치로 이동하는 함수
@@ -293,7 +271,7 @@ function goToTextLocation(text: string): void {
   }
 
   // 현재 범위들에서 해당 텍스트 찾기
-  const allRanges = [...currentKoreanRanges, ...currentI18nRanges];
+  const allRanges = [...stateManager.getKoreanRanges(), ...stateManager.getI18nRanges()];
   const targetRange = allRanges.find((range) => range.text === text);
 
   if (!targetRange) {
@@ -341,7 +319,7 @@ function addSelectedTextToPending(): void {
   }
 
   // 이미 pending에 있는지 확인
-  const existingTexts = treeDataProvider.getFilteredKoreanTexts();
+  const existingTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
   if (existingTexts.includes(selectedText)) {
     vscode.window.showInformationMessage('이미 pending 목록에 있는 텍스트입니다.');
     return;
@@ -359,20 +337,22 @@ function addSelectedTextToPending(): void {
   };
 
   // currentKoreanRanges에 추가
-  currentKoreanRanges.push(newRange);
+  const currentRanges = stateManager.getKoreanRanges();
+  currentRanges.push(newRange);
+  stateManager.setKoreanRanges(currentRanges);
 
   // TreeView 업데이트
   const allTexts = [
-    ...currentKoreanRanges.map((range) => ({ text: range.text, type: 'korean' as const })),
-    ...currentI18nRanges.map((range) => ({ text: range.text, type: 'i18n' as const })),
+    ...stateManager.getKoreanRanges().map((range) => ({ text: range.text, type: 'korean' as const })),
+    ...stateManager.getI18nRanges().map((range) => ({ text: range.text, type: 'i18n' as const })),
   ];
-  treeDataProvider.updateData(allTexts);
+  stateManager.getTreeDataProvider().updateData(allTexts);
 
   // 하이라이트 업데이트
-  const filteredKoreanRanges = currentKoreanRanges.filter(
-    (range) => !treeDataProvider.getExcludedTexts().has(range.text),
-  );
-  highlightText(editor, filteredKoreanRanges, currentI18nRanges);
+  const filteredKoreanRanges = stateManager
+    .getKoreanRanges()
+    .filter((range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text));
+  highlightText(editor, filteredKoreanRanges, stateManager.getI18nRanges());
 
   vscode.window.showInformationMessage('pending 목록에 추가되었습니다.');
 }
@@ -381,5 +361,5 @@ function addSelectedTextToPending(): void {
 export function deactivate() {
   // 모든 에디터에서 하이라이트 제거
   clearAllDecorations();
-  stopMonitoring();
+  stateManager.reset();
 }
