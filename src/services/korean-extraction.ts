@@ -716,6 +716,6 @@ class KoreanExtractionService {
   }
 }
 
-// 클래스 인스턴스를 생성하고 extractKoreanTexts 메서드만 내보내기
 const service = new KoreanExtractionService();
+
 export const extractKoreanTexts = service.extractKoreanTexts.bind(service);

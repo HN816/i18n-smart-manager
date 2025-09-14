@@ -690,7 +690,6 @@ class LocalesGenerationService {
   }
 }
 
-// 싱글톤 인스턴스 생성
 const service = new LocalesGenerationService();
 
 export async function showLocalesGenerationDialog(texts: string[], language: string = 'ko'): Promise<void> {

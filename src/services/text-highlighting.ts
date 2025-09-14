@@ -70,10 +70,8 @@ class TextHighlightingService {
   }
 }
 
-// 싱글톤 인스턴스 생성
 const service = new TextHighlightingService();
 
-// 요청된 함수들만 내보내기
 export const highlightText = (editor: vscode.TextEditor, koreanRanges: KoreanRange[], i18nRanges: KoreanRange[]) =>
   service.highlightText(editor, koreanRanges, i18nRanges);
 export const clearDecorations = (editor: vscode.TextEditor) => service.clearDecorations(editor);

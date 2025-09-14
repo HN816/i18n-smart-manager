@@ -1,4 +1,5 @@
 import { I18nTreeDataProvider } from '../providers';
+import { highlightText } from '../services/text-highlighting';
 
 interface MonitoringState {
   isMonitoring: boolean;
@@ -102,6 +103,27 @@ class StateManager {
       this.eventListeners.onDidChangeTextDocument.dispose();
       this.eventListeners = null;
     }
+  }
+
+  // 하이라이트 업데이트 함수
+  updateHighlights(): void {
+    if (!this.isMonitoring()) {
+      return;
+    }
+
+    const { window } = require('vscode');
+    const editor = window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    // 제외된 텍스트를 제외한 한글 범위들만 필터링
+    const filteredKoreanRanges = this.getKoreanRanges().filter(
+      (range) => !this.getTreeDataProvider().getExcludedTexts().has(range.text),
+    );
+
+    // 하이라이트 적용
+    highlightText(editor, filteredKoreanRanges, this.getI18nRanges());
   }
 
   // 상태 초기화

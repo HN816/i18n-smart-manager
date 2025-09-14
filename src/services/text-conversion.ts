@@ -293,10 +293,8 @@ class TextConversionService {
   }
 }
 
-// 싱글톤 인스턴스 생성
 const service = new TextConversionService();
 
-// 요청된 함수들만 내보내기
 export const extractVariables = (text: string) => service.extractVariables(text);
 export const convertToI18nKey = (text: string) => service.convertToI18nKey(text);
 export const highlightConversionTargets = (texts: string[], ranges: { start: number; end: number; text: string }[]) =>

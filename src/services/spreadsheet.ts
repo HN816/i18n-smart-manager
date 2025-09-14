@@ -301,7 +301,6 @@ class SpreadsheetService {
   }
 }
 
-// 스프레드시트 업로드 메인 함수
 export async function uploadLocalesToSpreadsheet(): Promise<void> {
   try {
     // Service Account 인증 정보 확인

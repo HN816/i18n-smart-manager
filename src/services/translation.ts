@@ -100,7 +100,6 @@ class TranslationManager {
   }
 }
 
-// 여러 텍스트를 일괄 번역하는 함수
 export async function translateTexts(
   texts: string[],
   targetLang: string,
