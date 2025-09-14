@@ -72,7 +72,6 @@ export class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
         const treeItem = new I18nItem(item.text, 'korean', vscode.TreeItemCollapsibleState.None);
         treeItem.tooltip = `Korean text: ${item.text}`;
         treeItem.contextValue = 'korean-text';
-        // 클릭 시 해당 위치로 이동
         treeItem.command = {
           command: 'i18n-manager.goToText',
           title: 'Go to Text',
@@ -87,7 +86,6 @@ export class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
         const treeItem = new I18nItem(item.text, 'i18n', vscode.TreeItemCollapsibleState.None);
         treeItem.tooltip = `i18n applied: ${item.text}`;
         treeItem.contextValue = 'i18n-text';
-        // 클릭 시 해당 위치로 이동
         treeItem.command = {
           command: 'i18n-manager.goToText',
           title: 'Go to Text',
@@ -138,6 +136,11 @@ export class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
   // 제외 목록 초기화 메서드 추가
   clearExcludedTexts(): void {
     this.excludedTexts.clear();
+  }
+
+  // 모든 한글 텍스트 목록을 반환하는 메서드 (제외된 것 포함)
+  getAllKoreanTexts(): string[] {
+    return this.koreanTexts.map((item) => item.label);
   }
 
   // 제외되지 않은 한글 텍스트 목록을 반환하는 메서드 추가

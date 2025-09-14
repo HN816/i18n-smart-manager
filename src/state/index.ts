@@ -1,6 +1,7 @@
 import { I18nTreeDataProvider } from '../providers';
 import { highlightText } from '../services/text-highlighting';
 import type { MonitoringState, TextRange } from '../types';
+import * as vscode from 'vscode';
 
 class StateManager {
   private static instance: StateManager;
@@ -84,6 +85,25 @@ class StateManager {
     return this._state.currentI18nRanges;
   }
 
+  // KoreanRange 추가 메서드
+  addKoreanRange(range: TextRange): void {
+    const currentRanges = this.getKoreanRanges();
+    this.setKoreanRanges([...currentRanges, range]);
+
+    // TreeView와 하이라이트 자동 업데이트
+    this.updateTreeView();
+    this.updateHighlights();
+  }
+
+  // TreeView 업데이트 메서드
+  private updateTreeView(): void {
+    const allTexts = [
+      ...this.getKoreanRanges().map((range) => ({ text: range.text, type: 'korean' as const })),
+      ...this.getI18nRanges().map((range) => ({ text: range.text, type: 'i18n' as const })),
+    ];
+    this.getTreeDataProvider().updateData(allTexts);
+  }
+
   // 이벤트 리스너 관리
   private eventListeners: any = null;
 
@@ -105,8 +125,7 @@ class StateManager {
       return;
     }
 
-    const { window } = require('vscode');
-    const editor = window.activeTextEditor;
+    const editor = vscode.window.activeTextEditor;
     if (!editor) {
       return;
     }

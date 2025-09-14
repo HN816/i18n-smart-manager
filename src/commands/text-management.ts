@@ -89,10 +89,21 @@ function addSelectedTextToPending(): void {
   }
 
   // 이미 pending에 있는지 확인
-  const existingTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
+  const existingTexts = stateManager.getTreeDataProvider().getAllKoreanTexts();
   if (existingTexts.includes(selectedText)) {
-    vscode.window.showInformationMessage('이미 pending 목록에 있는 텍스트입니다.');
-    return;
+    // 제외된 텍스트인지 확인
+    const isExcluded = stateManager.getTreeDataProvider().getExcludedTexts().has(selectedText);
+
+    if (isExcluded) {
+      // 제외된 텍스트인 경우 자동으로 포함시키기
+      stateManager.getTreeDataProvider().includeText(selectedText);
+      vscode.window.showInformationMessage('텍스트가 다시 포함되었습니다.');
+      return;
+    } else {
+      // 이미 포함된 텍스트인 경우
+      vscode.window.showInformationMessage('이미 pending 목록에 있는 텍스트입니다.');
+      return;
+    }
   }
 
   // 선택된 텍스트의 위치 정보 생성
@@ -106,23 +117,8 @@ function addSelectedTextToPending(): void {
     text: selectedText,
   };
 
-  // currentKoreanRanges에 추가
-  const currentRanges = stateManager.getKoreanRanges();
-  currentRanges.push(newRange);
-  stateManager.setKoreanRanges(currentRanges);
-
-  // TreeView 업데이트
-  const allTexts = [
-    ...stateManager.getKoreanRanges().map((range) => ({ text: range.text, type: 'korean' as const })),
-    ...stateManager.getI18nRanges().map((range) => ({ text: range.text, type: 'i18n' as const })),
-  ];
-  stateManager.getTreeDataProvider().updateData(allTexts);
-
-  // 하이라이트 업데이트
-  const filteredKoreanRanges = stateManager
-    .getKoreanRanges()
-    .filter((range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text));
-  highlightText(editor, filteredKoreanRanges, stateManager.getI18nRanges());
+  // stateManager의 메서드 사용
+  stateManager.addKoreanRange(newRange);
 
   vscode.window.showInformationMessage('pending 목록에 추가되었습니다.');
 }
