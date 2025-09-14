@@ -1,18 +1,5 @@
 import * as vscode from 'vscode';
-
-// 변수 정보를 담는 인터페이스
-interface VariableInfo {
-  originalText: string;
-  variables: string[];
-  template: string;
-}
-
-// 수정사항 정보를 담는 인터페이스
-interface Modification {
-  start: number;
-  end: number;
-  replacement: string;
-}
+import type { VariableInfo, Modification } from '../types';
 
 // 텍스트 변환 서비스 클래스
 class TextConversionService {

@@ -1,12 +1,6 @@
 import { I18nTreeDataProvider } from '../providers';
 import { highlightText } from '../services/text-highlighting';
-
-interface MonitoringState {
-  isMonitoring: boolean;
-  debounceTimer: NodeJS.Timeout | undefined;
-  currentKoreanRanges: { start: number; end: number; text: string }[];
-  currentI18nRanges: { start: number; end: number; text: string }[];
-}
+import type { MonitoringState, TextRange } from '../types';
 
 class StateManager {
   private static instance: StateManager;
@@ -74,19 +68,19 @@ class StateManager {
   }
 
   // 범위 데이터 관리
-  setKoreanRanges(ranges: { start: number; end: number; text: string }[]): void {
+  setKoreanRanges(ranges: TextRange[]): void {
     this._state.currentKoreanRanges = ranges;
   }
 
-  setI18nRanges(ranges: { start: number; end: number; text: string }[]): void {
+  setI18nRanges(ranges: TextRange[]): void {
     this._state.currentI18nRanges = ranges;
   }
 
-  getKoreanRanges(): { start: number; end: number; text: string }[] {
+  getKoreanRanges(): TextRange[] {
     return this._state.currentKoreanRanges;
   }
 
-  getI18nRanges(): { start: number; end: number; text: string }[] {
+  getI18nRanges(): TextRange[] {
     return this._state.currentI18nRanges;
   }
 

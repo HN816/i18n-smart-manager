@@ -1,13 +1,4 @@
-export interface KoreanRange {
-  start: number;
-  end: number;
-  text: string;
-}
-
-interface ExtractedTexts {
-  koreanRanges: KoreanRange[];
-  i18nRanges: KoreanRange[];
-}
+import type { TextRange, ExtractedTexts } from '../types';
 
 class KoreanExtractionService {
   // Vue 파일 처리 함수
@@ -119,8 +110,8 @@ class KoreanExtractionService {
   }
 
   // i18n 적용된 부분 찾기
-  private findI18nRanges(text: string): KoreanRange[] {
-    const i18nRanges: KoreanRange[] = [];
+  private findI18nRanges(text: string): TextRange[] {
+    const i18nRanges: TextRange[] = [];
 
     // t('모든문자') 패턴 찾기 - t 다음에 바로 (가 와야 함
     const tMatches = text.matchAll(/\bt\(['"`]([^'"`]*?)['"`]\)/g);
@@ -297,7 +288,7 @@ class KoreanExtractionService {
 
     // 모든 패턴 검사 후 중복 제거
     // 겹치는 범위들을 제거하고 더 긴 범위를 우선시
-    const uniqueRanges: KoreanRange[] = [];
+    const uniqueRanges: TextRange[] = [];
 
     for (const range of i18nRanges) {
       // 이미 추가된 범위와 겹치는지 확인
@@ -334,9 +325,9 @@ class KoreanExtractionService {
   private findKoreanInTsFileWithMapping(
     processedText: string,
     positionMap: number[],
-    i18nRanges: KoreanRange[],
-  ): KoreanRange[] {
-    const koreanRanges: KoreanRange[] = [];
+    i18nRanges: TextRange[],
+  ): TextRange[] {
+    const koreanRanges: TextRange[] = [];
 
     // 1. 따옴표 안의 한글 처리 - 수동으로 따옴표 쌍 찾기
     let i = 0;
@@ -458,9 +449,9 @@ class KoreanExtractionService {
   private findKoreanRangesWithMapping(
     processedText: string,
     positionMap: number[],
-    i18nRanges: KoreanRange[],
-  ): KoreanRange[] {
-    const koreanRanges: KoreanRange[] = [];
+    i18nRanges: TextRange[],
+  ): TextRange[] {
+    const koreanRanges: TextRange[] = [];
 
     // 글자를 하나씩 따라가면서 한글 위치 찾기
     let currentWord = '';
@@ -690,7 +681,7 @@ class KoreanExtractionService {
     }
 
     // 1. 모든 한글 텍스트 찾기 (i18n 체크 없이)
-    let allKoreanRanges: KoreanRange[];
+    let allKoreanRanges: TextRange[];
     if (isTsFile) {
       allKoreanRanges = this.findKoreanInTsFileWithMapping(finalProcessedText, positionMap, []);
     } else {

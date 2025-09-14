@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { I18nItemType } from '../types';
 
 // TreeView 아이템 클래스
 export class I18nItem extends vscode.TreeItem {
@@ -6,17 +7,7 @@ export class I18nItem extends vscode.TreeItem {
 
   constructor(
     public readonly label: string,
-    public readonly type:
-      | 'korean'
-      | 'i18n'
-      | 'start'
-      | 'stop'
-      | 'refresh'
-      | 'pending-section'
-      | 'completed-section'
-      | 'button-container'
-      | 'control-buttons'
-      | 'convert-button',
+    public readonly type: I18nItemType,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
   ) {
     super(label, collapsibleState);

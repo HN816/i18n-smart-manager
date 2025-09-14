@@ -1,7 +1,4 @@
-// 번역 서비스 인터페이스
-interface TranslationService {
-  translate(text: string, targetLang: string): Promise<string>;
-}
+import type { TranslationService } from '../types';
 
 // DeepL 번역 서비스
 class DeepLTranslationService implements TranslationService {

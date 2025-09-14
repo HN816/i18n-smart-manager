@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { KoreanRange } from './korean-extraction';
+import { TextRange } from '../types';
 
 class TextHighlightingService {
   private currentDecorations: vscode.TextEditorDecorationType[] = [];
 
   // 텍스트 하이라이트
-  highlightText(editor: vscode.TextEditor, koreanRanges: KoreanRange[], i18nRanges: KoreanRange[]): void {
+  highlightText(editor: vscode.TextEditor, koreanRanges: TextRange[], i18nRanges: TextRange[]): void {
     const document = editor.document;
 
     // 기존 하이라이트 제거
@@ -72,7 +72,7 @@ class TextHighlightingService {
 
 const service = new TextHighlightingService();
 
-export const highlightText = (editor: vscode.TextEditor, koreanRanges: KoreanRange[], i18nRanges: KoreanRange[]) =>
+export const highlightText = (editor: vscode.TextEditor, koreanRanges: TextRange[], i18nRanges: TextRange[]) =>
   service.highlightText(editor, koreanRanges, i18nRanges);
 export const clearDecorations = (editor: vscode.TextEditor) => service.clearDecorations(editor);
 export const clearAllDecorations = () => service.clearAllDecorations();

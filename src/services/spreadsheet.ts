@@ -2,27 +2,8 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { GoogleSpreadsheet } from 'google-spreadsheet';
-
-interface ServiceAccountCredentials {
-  type: string;
-  project_id: string;
-  private_key_id: string;
-  private_key: string;
-  client_email: string;
-  client_id: string;
-  auth_uri: string;
-  token_uri: string;
-  auth_provider_x509_cert_url: string;
-  client_x509_cert_url: string;
-  universe_domain: string;
-}
-
-interface SpreadsheetConfig {
-  spreadsheetId: string;
-  sheetName: string;
-  keyColumn: string;
-  valueColumn: string;
-}
+import type { ServiceAccountCredentials } from 'google-spreadsheet';
+import type { SpreadsheetConfig } from '../types';
 
 class SpreadsheetService {
   private credentials: ServiceAccountCredentials;

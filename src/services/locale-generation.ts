@@ -2,13 +2,7 @@ import * as vscode from 'vscode';
 import { convertToI18nKey, extractVariables } from './text-conversion';
 import { translateTexts } from './translation';
 import * as path from 'path';
-
-// JSON 파일 생성을 위한 인터페이스
-interface LocaleEntry {
-  key: string;
-  value: string;
-  variables?: string[];
-}
+import type { LocaleEntry } from '../types';
 
 class LocalesGenerationService {
   // 프로젝트 루트 경로를 가져오는 헬퍼 함수
