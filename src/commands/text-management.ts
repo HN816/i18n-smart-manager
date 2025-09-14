@@ -1,26 +1,25 @@
 import * as vscode from 'vscode';
 import { stateManager } from '../state';
-import { highlightText } from '../services/text-highlighting';
 
 export function registerTextManagementCommands(context: vscode.ExtensionContext): void {
   // 텍스트 제외 명령어 등록
   const excludeCommand = vscode.commands.registerCommand('i18n-manager.exclude', (item: any) => {
     if (item.type === 'korean') {
-      stateManager.getTreeDataProvider().excludeText(item.label);
+      stateManager.getTreeDataProvider().excludeText(item);
     }
   });
 
   // 텍스트 포함 명령어 등록
   const includeCommand = vscode.commands.registerCommand('i18n-manager.include', (item: any) => {
     if (item.type === 'korean') {
-      stateManager.getTreeDataProvider().includeText(item.label);
+      stateManager.getTreeDataProvider().includeText(item);
     }
   });
 
   // 텍스트 위치로 이동 명령어 등록
   const goToTextCommand = vscode.commands.registerCommand('i18n-manager.goToText', (item: any) => {
     if (item.type === 'korean' || item.type === 'i18n') {
-      goToTextLocation(item.label);
+      goToTextLocation(item);
     }
   });
 
@@ -33,33 +32,37 @@ export function registerTextManagementCommands(context: vscode.ExtensionContext)
 }
 
 // 텍스트 위치로 이동하는 함수
-function goToTextLocation(text: string): void {
+function goToTextLocation(item: any): void {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showWarningMessage('활성 편집기가 없습니다.');
     return;
   }
 
-  // 현재 범위들에서 해당 텍스트 찾기
-  const allRanges = [...stateManager.getKoreanRanges(), ...stateManager.getI18nRanges()];
-  const targetRange = allRanges.find((range) => range.text === text);
-
-  if (!targetRange) {
-    vscode.window.showWarningMessage(`"${text}"을(를) 찾을 수 없습니다.`);
+  // I18nItem에 range 정보가 있는 경우 해당 위치로 이동
+  if (item.range) {
+    const startPos = editor.document.positionAt(item.range.start);
+    const endPos = editor.document.positionAt(item.range.end);
+    editor.selection = new vscode.Selection(startPos, endPos);
+    editor.revealRange(new vscode.Range(startPos, endPos));
     return;
   }
 
-  // 위치로 이동
-  const startPos = editor.document.positionAt(targetRange.start);
-  const endPos = editor.document.positionAt(targetRange.end);
-  const range = new vscode.Range(startPos, endPos);
+  // 텍스트 검색으로 이동
+  const text = item.label;
+  const document = editor.document;
+  const textContent = document.getText();
 
-  // 선택하고 스크롤
-  editor.selection = new vscode.Selection(startPos, endPos);
-  editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
-
-  // 포커스 이동
-  vscode.window.showTextDocument(editor.document, editor.viewColumn);
+  // 텍스트가 포함된 위치 찾기
+  const index = textContent.indexOf(text);
+  if (index !== -1) {
+    const startPos = document.positionAt(index);
+    const endPos = document.positionAt(index + text.length);
+    editor.selection = new vscode.Selection(startPos, endPos);
+    editor.revealRange(new vscode.Range(startPos, endPos));
+  } else {
+    vscode.window.showWarningMessage(`텍스트 "${text}"를 찾을 수 없습니다.`);
+  }
 }
 
 // 선택된 텍스트를 pending에 추가하는 함수
@@ -86,24 +89,6 @@ function addSelectedTextToPending(): void {
   if (!/[가-힣]/.test(selectedText)) {
     vscode.window.showWarningMessage('선택된 텍스트에 한글이 포함되어 있지 않습니다.');
     return;
-  }
-
-  // 이미 pending에 있는지 확인
-  const existingTexts = stateManager.getTreeDataProvider().getAllKoreanTexts();
-  if (existingTexts.includes(selectedText)) {
-    // 제외된 텍스트인지 확인
-    const isExcluded = stateManager.getTreeDataProvider().getExcludedTexts().has(selectedText);
-
-    if (isExcluded) {
-      // 제외된 텍스트인 경우 자동으로 포함시키기
-      stateManager.getTreeDataProvider().includeText(selectedText);
-      vscode.window.showInformationMessage('텍스트가 다시 포함되었습니다.');
-      return;
-    } else {
-      // 이미 포함된 텍스트인 경우
-      vscode.window.showInformationMessage('이미 pending 목록에 있는 텍스트입니다.');
-      return;
-    }
   }
 
   // 선택된 텍스트의 위치 정보 생성

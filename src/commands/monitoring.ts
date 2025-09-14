@@ -112,16 +112,18 @@ function extractKoreanTextsFromEditor(editor: vscode.TextEditor): void {
   stateManager.setKoreanRanges(koreanRanges);
   stateManager.setI18nRanges(i18nRanges);
 
-  // TreeView에 표시할 데이터 준비
+  // TreeView에 표시할 데이터 준비 (range 정보 포함)
   const allTexts = [
-    ...koreanRanges.map((range) => ({ text: range.text, type: 'korean' as const })),
-    ...i18nRanges.map((range) => ({ text: range.text, type: 'i18n' as const })),
+    ...koreanRanges.map((range) => ({ text: range.text, type: 'korean' as const, range })),
+    ...i18nRanges.map((range) => ({ text: range.text, type: 'i18n' as const, range })),
   ];
 
-  // 하이라이트 적용 (제외된 텍스트 제외)
-  const filteredKoreanRanges = koreanRanges.filter(
-    (range) => !stateManager.getTreeDataProvider().getExcludedTexts().has(range.text),
-  );
+  // 하이라이트 적용 (제외된 텍스트 ID 기반으로 필터링)
+  const excludedIds = stateManager.getTreeDataProvider().getExcludedTexts();
+  const filteredKoreanRanges = koreanRanges.filter((range) => {
+    const uniqueId = `${range.text}:${range.start}:${range.end}`;
+    return !excludedIds.has(uniqueId);
+  });
   highlightText(editor, filteredKoreanRanges, i18nRanges);
 
   // TreeView 업데이트

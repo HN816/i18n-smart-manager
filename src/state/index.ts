@@ -98,8 +98,16 @@ class StateManager {
   // TreeView 업데이트 메서드
   private updateTreeView(): void {
     const allTexts = [
-      ...this.getKoreanRanges().map((range) => ({ text: range.text, type: 'korean' as const })),
-      ...this.getI18nRanges().map((range) => ({ text: range.text, type: 'i18n' as const })),
+      ...this.getKoreanRanges().map((range) => ({
+        text: range.text,
+        type: 'korean' as const,
+        range: range,
+      })),
+      ...this.getI18nRanges().map((range) => ({
+        text: range.text,
+        type: 'i18n' as const,
+        range: range,
+      })),
     ];
     this.getTreeDataProvider().updateData(allTexts);
   }
@@ -130,10 +138,15 @@ class StateManager {
       return;
     }
 
+    // 제외된 텍스트 ID들을 가져와서 필터링
+    const excludedIds = this.getTreeDataProvider().getExcludedTexts();
+
     // 제외된 텍스트를 제외한 한글 범위들만 필터링
-    const filteredKoreanRanges = this.getKoreanRanges().filter(
-      (range) => !this.getTreeDataProvider().getExcludedTexts().has(range.text),
-    );
+    const filteredKoreanRanges = this.getKoreanRanges().filter((range) => {
+      // range를 기반으로 고유 ID 생성
+      const uniqueId = `${range.text}:${range.start}:${range.end}`;
+      return !excludedIds.has(uniqueId);
+    });
 
     // 하이라이트 적용
     highlightText(editor, filteredKoreanRanges, this.getI18nRanges());
