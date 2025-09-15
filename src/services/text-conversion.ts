@@ -30,19 +30,39 @@ class TextConversionService {
   }
 
   // 변수 포함 텍스트를 i18n 형태로 변환
-  private convertTextWithVariables(text: string): string {
+  private convertTextWithVariables(text: string, range: { start: number, end: number, text: string }): string {
     const variableInfo = this.extractVariables(text);
+    let i18nFunction: string;
 
     if (variableInfo.variables.length === 0) {
       // 변수가 없는 경우 기존 로직 사용
       const i18nKey = this.convertToI18nKey(text);
-      return `t('${i18nKey}')`;
+      i18nFunction = `t('${i18nKey}')`;
     } else {
       // 변수가 있는 경우 템플릿 기반으로 변환
       const templateKey = this.convertToI18nKey(variableInfo.template);
       const variablesArray = variableInfo.variables.join(', ');
-      return `t('${templateKey}', [${variablesArray}])`;
+      i18nFunction = `t('${templateKey}', [${variablesArray}])`;
     }
+
+    // JSX/TSX 파일인지 확인
+    if (this.isJsxFile()) {
+      // 따옴표로 감싸진 텍스트인지 확인
+      const isQuoted = text
+        ? this.isQuotedString(text)
+        : false;
+
+      if (isQuoted) {
+        // 따옴표로 감싸진 텍스트: 중괄호 없이 t() 함수만
+        return i18nFunction;
+      } else {
+        // 일반 JSX 텍스트: t() 함수를 중괄호로 감싸기
+        return `{${i18nFunction}}`;
+      }
+    }
+
+    // 일반 텍스트는 기존 방식
+    return i18nFunction;
   }
 
   // 미리보기 로직을 내부적으로 실행하는 헬퍼 함수 (화면에 표시하지 않음) - 변수 포함 지원
@@ -66,7 +86,7 @@ class TextConversionService {
 
         if (!isOverlapping) {
           // 변수 포함 텍스트 변환
-          const conversionPreview = this.convertTextWithVariables(text);
+          const conversionPreview = this.convertTextWithVariables(text, range);
 
           // 수정사항 저장
           this.savedModifications.push({
@@ -82,35 +102,14 @@ class TextConversionService {
     });
   }
 
-  private async replaceTextWithI18n(i18nKey: string, start: number, end: number): Promise<boolean> {
-    return new Promise((resolve) => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        vscode.window.showWarningMessage('활성 편집기가 없습니다.');
-        resolve(false);
-        return;
-      }
-
-      const document = editor.document;
-
-      const startPos = document.positionAt(start);
-      const endPos = document.positionAt(end);
-      const range = new vscode.Range(startPos, endPos);
-
-      const edit = new vscode.WorkspaceEdit();
-      edit.replace(document.uri, range, i18nKey);
-
-      vscode.workspace.applyEdit(edit).then(() => {
-        resolve(true);
-      });
-    });
-  }
-
   // 텍스트에서 변수 추출 및 템플릿 생성
   extractVariables(text: string): VariableInfo {
     const variables: string[] = [];
     let template = text;
     let index = 0;
+
+    // JSX/TSX 파일인지 확인
+    const isJsxFile = this.isJsxFile();
 
     // ${} 형태 변수 찾기
     const dollarMatches = text.matchAll(/\$\{\s*([^}]+)\s*\}/g);
@@ -130,6 +129,17 @@ class TextConversionService {
       index++;
     }
 
+    // JSX/TSX 파일에서는 {} 형태도 변수로 처리
+    if (isJsxFile) {
+      const jsxBraceMatches = text.matchAll(/\{\s*([^}]+)\s*\}/g);
+      for (const match of jsxBraceMatches) {
+        const variableName = match[1].trim();
+        variables.push(variableName);
+        template = template.replace(match[0], `{${index}}`);
+        index++;
+      }
+    }
+
     return {
       originalText: text,
       variables,
@@ -145,7 +155,15 @@ class TextConversionService {
       "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')",
     );
 
-    return this.executeCustomFunction(customFunction, text);
+    // 따옴표로 감싸진 텍스트인 경우 시작과 끝의 따옴표 제거
+    let cleanText = text;
+    if ((text.startsWith('"') && text.endsWith('"')) ||
+      (text.startsWith("'") && text.endsWith("'")) ||
+      (text.startsWith("`") && text.endsWith("`"))) {
+      cleanText = text.slice(1, -1);
+    }
+
+    return this.executeCustomFunction(customFunction, cleanText);
   }
 
   // 변환될 부분을 미리 하이라이트하는 테스트 함수
@@ -181,7 +199,7 @@ class TextConversionService {
           const endPos = document.positionAt(range.end);
 
           // 변수 포함 텍스트 변환
-          const conversionPreview = this.convertTextWithVariables(text);
+          const conversionPreview = this.convertTextWithVariables(text, range);
 
           // 수정사항 저장
           this.savedModifications.push({
@@ -277,6 +295,26 @@ class TextConversionService {
     await vscode.workspace.applyEdit(edit);
 
     this.clearConversionPreview();
+  }
+
+  // JSX/TSX 파일인지 확인하는 함수
+  private isJsxFile(): boolean {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return false;
+    }
+
+    const fileName = editor.document.fileName.toLowerCase();
+    return fileName.endsWith('.jsx') || fileName.endsWith('.tsx');
+  }
+
+  // 따옴표로 감싸진 텍스트인지 확인하는 함수
+  private isQuotedString(text: string): boolean {
+    // 텍스트가 따옴표로 시작하고 끝나는지 확인
+    const firstChar = text.charAt(0);
+    const lastChar = text.charAt(text.length - 1);
+
+    return firstChar === '"' && lastChar === '"' || firstChar === "'" && lastChar === "'";
   }
 }
 

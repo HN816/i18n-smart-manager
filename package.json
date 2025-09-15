@@ -130,7 +130,7 @@
         },
         {
           "command": "i18n-manager.uploadToSpreadsheet",
-          "when": "view == i18nManager",
+          "when": "view == i18nManager && !i18nManager.isActive",
           "group": "navigation@7"
         }
       ],

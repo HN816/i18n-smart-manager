@@ -1,5 +1,7 @@
 // 공통 타입 정의
 
+export type FileType = 'vue' | 'ts' | 'tsx';
+
 // 텍스트 범위 정보
 export interface TextRange {
   start: number;

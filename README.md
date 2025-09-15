@@ -69,3 +69,7 @@ You can author your README using Visual Studio Code. Here are some useful editor
 * [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**
+
+
+따옴표 포함 여부에 따라 변수화 여부(ts,js 제외)
+로케일 키 생성은 따옴표 제거함
