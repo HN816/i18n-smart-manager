@@ -155,7 +155,7 @@ class KoreanExtractionService {
   private findKoreanInTsFileWithMapping(
     processedText: string,
     positionMap: number[],
-    excludeRanges: { start: number; end: number }[] = []
+    excludeRanges: { start: number; end: number }[] = [],
   ): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
@@ -163,7 +163,7 @@ class KoreanExtractionService {
     let i = 0;
     while (i < processedText.length) {
       // 제외 범위 내부인지 확인
-      const isInExcludeRange = excludeRanges.some(range => i >= range.start && i < range.end);
+      const isInExcludeRange = excludeRanges.some((range) => i >= range.start && i < range.end);
       if (isInExcludeRange) {
         i++;
         continue;
@@ -216,7 +216,7 @@ class KoreanExtractionService {
     // 한글 변수 패턴 찾기 (공백 없는 순수 한글)
     for (let i = 0; i < processedText.length; i++) {
       // 제외 범위 내부인지 확인
-      const isInExcludeRange = excludeRanges.some(range => i >= range.start && i < range.end);
+      const isInExcludeRange = excludeRanges.some((range) => i >= range.start && i < range.end);
       if (isInExcludeRange) {
         continue;
       }
@@ -272,10 +272,7 @@ class KoreanExtractionService {
   }
 
   // 한글 텍스트 위치 찾기 (위치 매핑 포함) - Vue 파일용
-  private findKoreanInVueFileWithMapping(
-    processedText: string,
-    positionMap: number[],
-  ): TextRange[] {
+  private findKoreanInVueFileWithMapping(processedText: string, positionMap: number[]): TextRange[] {
     // 1. style 태그 제거
     const textWithoutStyle = processedText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
 
@@ -283,19 +280,10 @@ class KoreanExtractionService {
     const scriptRanges = this.findScriptRanges(textWithoutStyle);
 
     // 3. script 태그 내부 한글 텍스트 추출
-    const scriptKoreanRanges = this.extractKoreanFromScriptTags(
-      textWithoutStyle,
-      positionMap,
-      scriptRanges,
-    );
+    const scriptKoreanRanges = this.extractKoreanFromScriptTags(textWithoutStyle, positionMap, scriptRanges);
 
     // 4. Vue 템플릿에서 한글 텍스트 추출
-    const templateKoreanRanges = this.extractKoreanFromHtmlTemplate(
-      textWithoutStyle,
-      positionMap,
-      scriptRanges,
-      'vue'
-    );
+    const templateKoreanRanges = this.extractKoreanFromHtmlTemplate(textWithoutStyle, positionMap, scriptRanges, 'vue');
 
     // 5. 결과 합치기
     return [...scriptKoreanRanges, ...templateKoreanRanges];
@@ -313,7 +301,7 @@ class KoreanExtractionService {
 
       scriptRanges.push({
         start: scriptStart,
-        end: scriptEnd
+        end: scriptEnd,
       });
     }
 
@@ -324,7 +312,7 @@ class KoreanExtractionService {
   private extractKoreanFromScriptTags(
     processedText: string,
     positionMap: number[],
-    scriptRanges: { start: number; end: number }[]
+    scriptRanges: { start: number; end: number }[],
   ): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
@@ -332,10 +320,7 @@ class KoreanExtractionService {
       const scriptContent = processedText.substring(scriptRange.start, scriptRange.end);
       const scriptPositionMap = positionMap.slice(scriptRange.start, scriptRange.end);
 
-      const scriptKoreanRanges = this.findKoreanInTsFileWithMapping(
-        scriptContent,
-        scriptPositionMap
-      );
+      const scriptKoreanRanges = this.findKoreanInTsFileWithMapping(scriptContent, scriptPositionMap);
 
       koreanRanges.push(...scriptKoreanRanges);
     }
@@ -349,7 +334,7 @@ class KoreanExtractionService {
   private extractKoreanFromVariableContent(
     content: string,
     variableStart: number,
-    offset: number // Vue는 2, TSX는 1
+    offset: number, // Vue는 2, TSX는 1
   ): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
@@ -364,7 +349,7 @@ class KoreanExtractionService {
         koreanRanges.push({
           start: absoluteStart,
           end: absoluteEnd,
-          text: quotedText
+          text: quotedText,
         });
       }
     }
@@ -382,7 +367,7 @@ class KoreanExtractionService {
       koreanRanges.push({
         start: absoluteStart,
         end: absoluteEnd,
-        text: innerText
+        text: innerText,
       });
     }
 
@@ -393,8 +378,8 @@ class KoreanExtractionService {
     processedText: string,
     positionMap: number[],
     excludeRanges: { start: number; end: number }[] = [],
-    fileType: FileType
-  ): { variableRanges: TextRange[], extractedRanges: TextRange[] } {
+    fileType: FileType,
+  ): { variableRanges: TextRange[]; extractedRanges: TextRange[] } {
     const variableRanges: TextRange[] = [];
     const extractedRanges: TextRange[] = [];
 
@@ -403,8 +388,8 @@ class KoreanExtractionService {
       const vueRegex = /\{\{([^}]+)\}\}/g;
       let match: RegExpExecArray | null;
       while ((match = vueRegex.exec(processedText)) !== null) {
-        const isInExcludeRange = excludeRanges.some(range =>
-          match!.index! >= range.start && match!.index! < range.end
+        const isInExcludeRange = excludeRanges.some(
+          (range) => match!.index! >= range.start && match!.index! < range.end,
         );
 
         if (!isInExcludeRange && /[가-힣]/.test(match[1])) {
@@ -425,8 +410,8 @@ class KoreanExtractionService {
       // Vue: "{}" 패턴 찾기 (줄바꿈/공백 포함)
       const vueQuotedRegex = /"[\s\n\r]*\{([^}]+)\}[\s\n\r]*"/g;
       while ((match = vueQuotedRegex.exec(processedText)) !== null) {
-        const isInExcludeRange = excludeRanges.some(range =>
-          match!.index! >= range.start && match!.index! < range.end
+        const isInExcludeRange = excludeRanges.some(
+          (range) => match!.index! >= range.start && match!.index! < range.end,
         );
 
         if (!isInExcludeRange && /[가-힣]/.test(match[1])) {
@@ -450,8 +435,8 @@ class KoreanExtractionService {
       const tsxRegex = /\{([^{}]*[가-힣][^{}]*)\}/g;
       let match: RegExpExecArray | null;
       while ((match = tsxRegex.exec(processedText)) !== null) {
-        const isInExcludeRange = excludeRanges.some(range =>
-          match!.index! >= range.start && match!.index! < range.end
+        const isInExcludeRange = excludeRanges.some(
+          (range) => match!.index! >= range.start && match!.index! < range.end,
         );
 
         if (!isInExcludeRange) {
@@ -477,12 +462,17 @@ class KoreanExtractionService {
   private extractKoreanFromHtmlTemplate(
     processedText: string,
     positionMap: number[],
-    excludeRanges: { start: number; end: number }[] = [],  // 제외할 범위들
-    fileType: FileType
+    excludeRanges: { start: number; end: number }[] = [], // 제외할 범위들
+    fileType: FileType,
   ): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
-    const { variableRanges, extractedRanges } = this.extractVariablesFromHtmlTemplate(processedText, positionMap, excludeRanges, fileType);
+    const { variableRanges, extractedRanges } = this.extractVariablesFromHtmlTemplate(
+      processedText,
+      positionMap,
+      excludeRanges,
+      fileType,
+    );
     koreanRanges.push(...extractedRanges);
 
     // 문자별 처리 로직
@@ -490,7 +480,7 @@ class KoreanExtractionService {
       processedText,
       positionMap,
       excludeRanges,
-      fileType
+      fileType,
     );
 
     // variableRanges 기준으로 characterProcessedRanges 쪼개기
@@ -505,16 +495,13 @@ class KoreanExtractionService {
 
     for (const koreanRange of koreanRanges) {
       // 이 범위 안에 완전히 포함된 variableRanges 찾기
-      const insideVariables = variableRanges.filter(vr =>
-        vr.start >= koreanRange.start && vr.end <= koreanRange.end
-      );
+      const insideVariables = variableRanges.filter((vr) => vr.start >= koreanRange.start && vr.end <= koreanRange.end);
 
       if (insideVariables.length === 0) {
         // 변수가 없으면 그대로 추가
         result.push(koreanRange);
         continue;
       }
-
 
       // 변수 기준으로 쪼개기
       let currentStart = koreanRange.start;
@@ -524,13 +511,13 @@ class KoreanExtractionService {
         if (currentStart < variable.start) {
           const beforeText = koreanRange.text.substring(
             currentStart - koreanRange.start,
-            variable.start - koreanRange.start
+            variable.start - koreanRange.start,
           );
           if (beforeText && /[가-힣]/.test(beforeText)) {
             result.push({
               start: currentStart,
               end: variable.start,
-              text: beforeText
+              text: beforeText,
             });
           }
         }
@@ -541,13 +528,13 @@ class KoreanExtractionService {
       if (currentStart < koreanRange.end) {
         const afterText = koreanRange.text.substring(
           currentStart - koreanRange.start,
-          koreanRange.end - koreanRange.start
+          koreanRange.end - koreanRange.start,
         );
         if (afterText && /[가-힣]/.test(afterText)) {
           result.push({
             start: currentStart,
             end: koreanRange.end,
-            text: afterText
+            text: afterText,
           });
         }
       }
@@ -561,7 +548,7 @@ class KoreanExtractionService {
     processedText: string,
     positionMap: number[],
     excludeRanges: { start: number; end: number }[] = [],
-    fileType: FileType
+    fileType: FileType,
   ): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
@@ -573,7 +560,7 @@ class KoreanExtractionService {
 
     for (let i = 0; i < processedText.length; i++) {
       // 제외할 범위 내부인지 확인
-      const isInExcludeRange = excludeRanges.some(range => i >= range.start && i < range.end);
+      const isInExcludeRange = excludeRanges.some((range) => i >= range.start && i < range.end);
       if (isInExcludeRange) {
         continue;
       }
@@ -593,6 +580,12 @@ class KoreanExtractionService {
 
       // 문자열 시작 트리거 확인
       if (!inString && (char === '"' || char === "'" || char === '`' || char === '>')) {
+        // => 패턴인지 확인 (화살표 함수)
+        if (char === '>' && i > 0 && processedText[i - 1] === '=') {
+          // => 패턴이면 문자열 시작 트리거로 인식하지 않음
+          continue;
+        }
+
         // 이전에 한글이 있었다면 저장
         if (currentWord.trim().length > 0 && hasKorean) {
           this.saveCurrentWord(currentWord, currentStart, i, positionMap, koreanRanges);
@@ -666,7 +659,7 @@ class KoreanExtractionService {
     currentStart: number,
     currentIndex: number,
     positionMap: number[],
-    koreanRanges: TextRange[]
+    koreanRanges: TextRange[],
   ): void {
     const trimmedWord = currentWord.replace(/^\s+|\s+$/g, '');
     const actualStart = currentStart + (currentWord.length - currentWord.trimStart().length);
@@ -690,7 +683,7 @@ class KoreanExtractionService {
     currentStart: number,
     stringType: string | null,
     positionMap: number[],
-    koreanRanges: TextRange[]
+    koreanRanges: TextRange[],
   ): void {
     // 따옴표는 제외하고 내용만 추출
     let content = currentWord.slice(1, -1).trim();
@@ -740,7 +733,7 @@ class KoreanExtractionService {
     hasKorean: boolean,
     currentIndex: number,
     positionMap: number[],
-    koreanRanges: TextRange[]
+    koreanRanges: TextRange[],
   ): void {
     // 한글이면 현재 단어에 추가
     if (/[가-힣]/.test(char)) {
@@ -775,10 +768,7 @@ class KoreanExtractionService {
   }
 
   // TSX 파일에서 한글 찾기 (위치 매핑 포함)
-  private findKoreanInTsxFileWithMapping(
-    processedText: string,
-    positionMap: number[],
-  ): TextRange[] {
+  private findKoreanInTsxFileWithMapping(processedText: string, positionMap: number[]): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
     // 1. JSX 태그 범위 찾기
@@ -812,7 +802,7 @@ class KoreanExtractionService {
         if (closingMatch) {
           ranges.push({
             start: start,
-            end: closingMatch.index + closingMatch[0].length
+            end: closingMatch.index + closingMatch[0].length,
           });
         }
       }
@@ -822,10 +812,7 @@ class KoreanExtractionService {
   }
 
   // JSX 태그에서 한글 텍스트 추출
-  private extractKoreanFromJsxTags(
-    processedText: string,
-    positionMap: number[],
-  ): TextRange[] {
+  private extractKoreanFromJsxTags(processedText: string, positionMap: number[]): TextRange[] {
     const koreanRanges: TextRange[] = [];
 
     // 1. return () 블록 찾기
@@ -858,7 +845,7 @@ class KoreanExtractionService {
       if (returnEnd !== -1) {
         returnBlocks.push({
           start: returnStart,
-          end: returnEnd + 1
+          end: returnEnd + 1,
         });
       }
     }
