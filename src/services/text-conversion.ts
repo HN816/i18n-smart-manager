@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { VariableInfo, Modification } from '../types';
+import { getFileType, isQuotedText } from '../utils';
 
 // 텍스트 변환 서비스 클래스
 class TextConversionService {
@@ -45,24 +46,22 @@ class TextConversionService {
       i18nFunction = `t('${templateKey}', [${variablesArray}])`;
     }
 
-    // JSX/TSX 파일인지 확인
-    if (this.isJsxFile()) {
-      // 따옴표로 감싸진 텍스트인지 확인
-      const isQuoted = text
-        ? this.isQuotedString(text)
-        : false;
-
-      if (isQuoted) {
-        // 따옴표로 감싸진 텍스트: 중괄호 없이 t() 함수만
-        return i18nFunction;
-      } else {
-        // 일반 JSX 텍스트: t() 함수를 중괄호로 감싸기
-        return `{${i18nFunction}}`;
-      }
+    if (isQuotedText(text)) {
+      return i18nFunction;
     }
 
-    // 일반 텍스트는 기존 방식
-    return i18nFunction;
+    const fileType = getFileType();
+    if (!fileType) {
+      return i18nFunction;
+    }
+
+    const wrapperMap = {
+      tsx: `{${i18nFunction}}`,
+      vue: `{{${i18nFunction}}}`,
+      ts: i18nFunction
+    };
+
+    return wrapperMap[fileType] || i18nFunction;
   }
 
   // 미리보기 로직을 내부적으로 실행하는 헬퍼 함수 (화면에 표시하지 않음) - 변수 포함 지원
@@ -108,9 +107,6 @@ class TextConversionService {
     let template = text;
     let index = 0;
 
-    // JSX/TSX 파일인지 확인
-    const isJsxFile = this.isJsxFile();
-
     // ${} 형태 변수 찾기
     const dollarMatches = text.matchAll(/\$\{\s*([^}]+)\s*\}/g);
     for (const match of dollarMatches) {
@@ -120,17 +116,18 @@ class TextConversionService {
       index++;
     }
 
-    // {{}} 형태 변수 찾기
-    const braceMatches = text.matchAll(/\{\{\s*([^}]+)\s*\}\}/g);
-    for (const match of braceMatches) {
-      const variableName = match[1].trim();
-      variables.push(variableName);
-      template = template.replace(match[0], `{${index}}`);
-      index++;
-    }
-
-    // JSX/TSX 파일에서는 {} 형태도 변수로 처리
-    if (isJsxFile) {
+    const fileType = getFileType();
+    if (fileType === 'vue') {
+      // {{}} 형태 변수 찾기
+      const braceMatches = text.matchAll(/\{\{\s*([^}]+)\s*\}\}/g);
+      for (const match of braceMatches) {
+        const variableName = match[1].trim();
+        variables.push(variableName);
+        template = template.replace(match[0], `{${index}}`);
+        index++;
+      }
+    } else if (fileType === 'tsx') {
+      // {} 형태 변수 찾기
       const jsxBraceMatches = text.matchAll(/\{\s*([^}]+)\s*\}/g);
       for (const match of jsxBraceMatches) {
         const variableName = match[1].trim();
@@ -295,26 +292,6 @@ class TextConversionService {
     await vscode.workspace.applyEdit(edit);
 
     this.clearConversionPreview();
-  }
-
-  // JSX/TSX 파일인지 확인하는 함수
-  private isJsxFile(): boolean {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      return false;
-    }
-
-    const fileName = editor.document.fileName.toLowerCase();
-    return fileName.endsWith('.jsx') || fileName.endsWith('.tsx');
-  }
-
-  // 따옴표로 감싸진 텍스트인지 확인하는 함수
-  private isQuotedString(text: string): boolean {
-    // 텍스트가 따옴표로 시작하고 끝나는지 확인
-    const firstChar = text.charAt(0);
-    const lastChar = text.charAt(text.length - 1);
-
-    return firstChar === '"' && lastChar === '"' || firstChar === "'" && lastChar === "'";
   }
 }
 

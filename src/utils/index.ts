@@ -1,6 +1,12 @@
 import type { FileType } from '../types';
+import * as vscode from 'vscode';
 
-export function getFileType(fileName: string): FileType | false {
+export function getFileType(fileNm?: string): FileType | false {
+    let fileName = fileNm;
+    if (!fileName) {
+        fileName = vscode.window.activeTextEditor?.document.fileName ?? '';
+    }
+
     if (fileName.toLowerCase().endsWith('.vue')) {
         return 'vue';
     } else if (fileName.toLowerCase().endsWith('.ts') || fileName.toLowerCase().endsWith('.js')) {
@@ -11,20 +17,12 @@ export function getFileType(fileName: string): FileType | false {
     return false;
 }
 
-export function hasVariables(text: string, fileType: FileType): boolean {
-    // ${} 패턴
-    if (/\$\{[^}]*\}/.test(text)) {
-        return true;
-    }
+// 따옴표/백틱으로 감싸진 텍스트인지 확인하는 함수
+export function isQuotedText(text: string): boolean {
+    const trimmed = text.trim();
+    const quotes = ["'", '"', '`'];
 
-    // 파일 타입별 변수 패턴
-    if (fileType === 'vue') {
-        // {{ }} 패턴
-        return /\{\{[^}]*\}\}/.test(text);
-    } else if (fileType === 'tsx') {
-        // {} 패턴
-        return /\{[^{}]*\}/.test(text);
-    }
-
-    return false;
+    return quotes.some(quote =>
+        trimmed.startsWith(quote) && trimmed.endsWith(quote)
+    );
 }

@@ -3,6 +3,7 @@ import { convertToI18nKey, extractVariables } from './text-conversion';
 import { translateTexts } from './translation';
 import * as path from 'path';
 import type { LocaleEntry } from '../types';
+import { getFileType } from '../utils';
 
 class LocalesGenerationService {
   // 프로젝트 루트 경로를 가져오는 헬퍼 함수
@@ -124,11 +125,10 @@ class LocalesGenerationService {
         // ${} 형태 변수를 {숫자} 형태로 변환
         i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
 
-        // {{}} 형태 변수를 {숫자} 형태로 변환
-        i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
-
-        // JSX/TSX 파일에서는 {} 형태도 변수로 처리
-        if (this.isJsxFile()) {
+        const fileType = getFileType();
+        if (fileType === 'vue') {
+          i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
+        } else if (fileType === 'tsx') {
           i18nValue = i18nValue.replace(/\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
         }
 
@@ -274,11 +274,10 @@ class LocalesGenerationService {
         // ${} 형태 변수를 {숫자} 형태로 변환
         i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
 
-        // {{}} 형태 변수를 {숫자} 형태로 변환
-        i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
-
-        // JSX/TSX 파일에서는 {} 형태도 변수로 처리
-        if (this.isJsxFile()) {
+        const fileType = getFileType();
+        if (fileType === 'vue') {
+          i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
+        } else if (fileType === 'tsx') {
           i18nValue = i18nValue.replace(/\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
         }
 
@@ -680,17 +679,6 @@ class LocalesGenerationService {
     // translator.ts의 translateTexts 함수를 단일 텍스트용으로 래핑
     const result = await translateTexts([text], targetLanguage, service, apiKey);
     return result[0];
-  }
-
-  // JSX/TSX 파일인지 확인하는 함수
-  private isJsxFile(): boolean {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      return false;
-    }
-
-    const fileName = editor.document.fileName.toLowerCase();
-    return fileName.endsWith('.jsx') || fileName.endsWith('.tsx');
   }
 
   // locales.json 생성 명령어를 위한 헬퍼 함수 (기존 함수 수정)
