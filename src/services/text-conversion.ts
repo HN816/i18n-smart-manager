@@ -31,7 +31,7 @@ class TextConversionService {
   }
 
   // 변수 포함 텍스트를 i18n 형태로 변환
-  private convertTextWithVariables(text: string, range: { start: number, end: number, text: string }): string {
+  private convertTextWithVariables(text: string, range: { start: number; end: number; text: string }): string {
     const variableInfo = this.extractVariables(text);
     let i18nFunction: string;
 
@@ -58,14 +58,29 @@ class TextConversionService {
     const wrapperMap = {
       tsx: `{${i18nFunction}}`,
       vue: `{{${i18nFunction}}}`,
-      ts: i18nFunction
+      ts: i18nFunction,
     };
 
     return wrapperMap[fileType] || i18nFunction;
   }
 
-  // 미리보기 로직을 내부적으로 실행하는 헬퍼 함수 (화면에 표시하지 않음) - 변수 포함 지원
-  private calculateModifications(texts: string[], ranges: { start: number; end: number; text: string }[]): void {
+  // 공통 변환 로직: 수정사항 계산 및 선택적 하이라이트
+  private processConversions(
+    texts: string[],
+    ranges: { start: number; end: number; text: string }[],
+    shouldHighlight: boolean = false,
+  ): void {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      if (shouldHighlight) {
+        vscode.window.showWarningMessage('활성 편집기가 없습니다.');
+      }
+      return;
+    }
+
+    const document = editor.document;
+    const decorations: vscode.DecorationOptions[] = [];
+
     // 수정사항 초기화
     this.savedModifications = [];
 
@@ -94,11 +109,178 @@ class TextConversionService {
             replacement: conversionPreview,
           });
 
+          // 하이라이트가 필요한 경우 decoration 추가
+          if (shouldHighlight) {
+            const startPos = document.positionAt(range.start);
+            const endPos = document.positionAt(range.end);
+
+            decorations.push({
+              range: new vscode.Range(startPos, endPos),
+              hoverMessage: `변환 예정: "${text}" → ${conversionPreview}`,
+              renderOptions: {
+                before: {
+                  contentText: `[변환예정] `,
+                  color: '#ff6b6b',
+                  fontWeight: 'bold',
+                },
+                after: {
+                  contentText: ` → ${conversionPreview}`,
+                  color: '#4ecdc4',
+                  fontWeight: 'bold',
+                },
+              },
+            });
+          }
+
           // 처리된 범위에 추가
           processedRanges.push({ start: range.start, end: range.end });
         }
       });
     });
+
+    // 하이라이트가 필요한 경우 decoration 적용
+    if (shouldHighlight) {
+      // 기존 미리보기 제거
+      if (this.currentPreviewDecoration) {
+        this.currentPreviewDecoration.dispose();
+      }
+
+      // 변환 예정 하이라이트 적용
+      this.currentPreviewDecoration = vscode.window.createTextEditorDecorationType({
+        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+        border: '1px solid #ff6b6b',
+        borderRadius: '3px',
+      });
+
+      editor.setDecorations(this.currentPreviewDecoration, decorations);
+    }
+  }
+
+  // 미리보기 로직을 내부적으로 실행하는 헬퍼 함수 (화면에 표시하지 않음)
+  private calculateModifications(texts: string[], ranges: { start: number; end: number; text: string }[]): void {
+    this.processConversions(texts, ranges, false);
+  }
+
+  // 변환될 부분을 미리 하이라이트하는 함수
+  highlightConversionTargets(texts: string[], ranges: { start: number; end: number; text: string }[]): void {
+    this.processConversions(texts, ranges, true);
+  }
+
+  // 미리보기 하이라이트 제거 함수
+  clearConversionPreview(): void {
+    if (this.currentPreviewDecoration) {
+      this.currentPreviewDecoration.dispose();
+      this.currentPreviewDecoration = null;
+    }
+  }
+
+  // 미리보기에서 표시한 그대로 변환 적용
+  async applyConversionFromPreview(
+    texts: string[],
+    ranges: { start: number; end: number; text: string }[],
+  ): Promise<void> {
+    if (texts.length === 0) {
+      vscode.window.showInformationMessage('적용할 한글 텍스트가 없습니다.');
+      return;
+    }
+
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      vscode.window.showWarningMessage('활성 편집기가 없습니다.');
+      return;
+    }
+
+    // 미리보기 로직을 내부적으로 실행하여 수정사항 계산 (화면에 표시하지 않음)
+    this.calculateModifications(texts, ranges);
+
+    if (this.savedModifications.length === 0) {
+      vscode.window.showInformationMessage('적용할 변환사항이 없습니다.');
+      return;
+    }
+
+    const document = editor.document;
+    const edit = new vscode.WorkspaceEdit();
+
+    // 저장된 수정사항을 역순으로 적용 (뒤에서부터 앞으로)
+    const sortedModifications = this.savedModifications.sort((a, b) => b.start - a.start);
+
+    sortedModifications.forEach((mod) => {
+      // props 바인딩 체크하여 mod 수정 (vue: key="{{t()}}" → :key="{t()}", tsx: key="{t()}" → key={t()})
+      const finalMod = this.checkAndFixPropsBinding(mod, document);
+
+      const startPos = document.positionAt(finalMod.start);
+      const endPos = document.positionAt(finalMod.end);
+      const range = new vscode.Range(startPos, endPos);
+
+      edit.replace(document.uri, range, finalMod.replacement);
+    });
+
+    // 모든 수정사항을 한 번에 적용
+    await vscode.workspace.applyEdit(edit);
+
+    this.clearConversionPreview();
+  }
+
+  // props 바인딩 체크하여 mod 수정
+  private checkAndFixPropsBinding(mod: Modification, document: vscode.TextDocument): Modification {
+    const fileType = getFileType();
+    if (!fileType || (fileType !== 'vue' && fileType !== 'tsx')) {
+      return mod;
+    }
+
+    const content = document.getText();
+
+    // contextStart를 공백을 만날 때까지로 설정
+    let contextStart = mod.start;
+    while (contextStart > 0 && content[contextStart - 1] !== ' ') {
+      contextStart--;
+    }
+    const contextEnd = Math.min(content.length, mod.end + 1);
+
+    // replacement를 포함한 전체 컨텍스트 생성 (변경된 후 기준)
+    const beforeText = content.substring(contextStart, mod.start);
+    const afterText = content.substring(mod.end, contextEnd);
+    const fullContext = beforeText + mod.replacement + afterText;
+
+    if (fileType === 'vue') {
+      // Vue: mod.replacement가 {{}}로 감싸져 있는지 체크
+      const isWrappedInDoubleBraces = mod.replacement.startsWith('{{') && mod.replacement.endsWith('}}');
+
+      if (isWrappedInDoubleBraces) {
+        // key="{{t()}}" 패턴이 포함되어 있는지 확인
+        const vuePropsPattern = /(\w+(?:-\w+)*)="\{\{(t\([^}]*\))\}\}"/;
+        const match = fullContext.match(vuePropsPattern);
+        if (match) {
+          const [, propName, tFunction] = match;
+          // 변경된 후 기준으로 :key="t()" 형태로 수정하고 범위도 조정
+          return {
+            start: contextStart,
+            end: contextEnd,
+            replacement: `:${propName}="${tFunction}"`,
+          };
+        }
+      }
+    } else if (fileType === 'tsx') {
+      // TSX: mod.replacement가 {}로 감싸져 있는지 체크
+      const isWrappedInBraces = mod.replacement.startsWith('{') && mod.replacement.endsWith('}');
+
+      if (isWrappedInBraces) {
+        // key="{t()}" 패턴이 포함되어 있는지 확인
+        const tsxPropsPattern = /(\w+(?:-\w+)*)="\{(t\([^}]*\))\}"/;
+        const match = fullContext.match(tsxPropsPattern);
+        if (match) {
+          const [, propName, tFunction] = match;
+          // 변경된 후 기준으로 key={t()} 형태로 수정하고 범위도 조정
+          return {
+            start: contextStart,
+            end: contextEnd,
+            replacement: `${propName}={${tFunction}}`,
+          };
+        }
+      }
+    }
+
+    return mod;
   }
 
   // 텍스트에서 변수 추출 및 템플릿 생성
@@ -154,144 +336,15 @@ class TextConversionService {
 
     // 따옴표로 감싸진 텍스트인 경우 시작과 끝의 따옴표 제거
     let cleanText = text;
-    if ((text.startsWith('"') && text.endsWith('"')) ||
+    if (
+      (text.startsWith('"') && text.endsWith('"')) ||
       (text.startsWith("'") && text.endsWith("'")) ||
-      (text.startsWith("`") && text.endsWith("`"))) {
+      (text.startsWith('`') && text.endsWith('`'))
+    ) {
       cleanText = text.slice(1, -1);
     }
 
     return this.executeCustomFunction(customFunction, cleanText);
-  }
-
-  // 변환될 부분을 미리 하이라이트하는 테스트 함수
-  highlightConversionTargets(texts: string[], ranges: { start: number; end: number; text: string }[]): void {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showWarningMessage('활성 편집기가 없습니다.');
-      return;
-    }
-
-    const document = editor.document;
-    const decorations: vscode.DecorationOptions[] = [];
-
-    // 수정사항 초기화
-    this.savedModifications = [];
-
-    // 중복 제거를 위해 처리된 범위 추적
-    const processedRanges: { start: number; end: number }[] = [];
-
-    // 각 텍스트에 대해 변환될 부분 하이라이트
-    texts.forEach((text) => {
-      // 같은 텍스트에 해당하는 모든 범위 찾기
-      const matchingRanges = ranges.filter((r) => r.text === text);
-
-      matchingRanges.forEach((range) => {
-        // 이미 처리된 범위와 겹치는지 확인
-        const isOverlapping = processedRanges.some(
-          (processed) => range.start < processed.end && range.end > processed.start,
-        );
-
-        if (!isOverlapping) {
-          const startPos = document.positionAt(range.start);
-          const endPos = document.positionAt(range.end);
-
-          // 변수 포함 텍스트 변환
-          const conversionPreview = this.convertTextWithVariables(text, range);
-
-          // 수정사항 저장
-          this.savedModifications.push({
-            start: range.start,
-            end: range.end,
-            replacement: conversionPreview,
-          });
-
-          decorations.push({
-            range: new vscode.Range(startPos, endPos),
-            hoverMessage: `변환 예정: "${text}" → ${conversionPreview}`,
-            renderOptions: {
-              before: {
-                contentText: `[변환예정] `,
-                color: '#ff6b6b',
-                fontWeight: 'bold',
-              },
-              after: {
-                contentText: ` → ${conversionPreview}`,
-                color: '#4ecdc4',
-                fontWeight: 'bold',
-              },
-            },
-          });
-
-          // 처리된 범위에 추가
-          processedRanges.push({ start: range.start, end: range.end });
-        }
-      });
-    });
-
-    // 기존 미리보기 제거
-    if (this.currentPreviewDecoration) {
-      this.currentPreviewDecoration.dispose();
-    }
-
-    // 변환 예정 하이라이트 적용
-    this.currentPreviewDecoration = vscode.window.createTextEditorDecorationType({
-      backgroundColor: 'rgba(255, 107, 107, 0.1)',
-      border: '1px solid #ff6b6b',
-      borderRadius: '3px',
-    });
-
-    editor.setDecorations(this.currentPreviewDecoration, decorations);
-  }
-
-  // 미리보기 하이라이트 제거 함수
-  clearConversionPreview(): void {
-    if (this.currentPreviewDecoration) {
-      this.currentPreviewDecoration.dispose();
-      this.currentPreviewDecoration = null;
-    }
-  }
-
-  // 미리보기에서 표시한 그대로 변환 적용
-  async applyConversionFromPreview(
-    texts: string[],
-    ranges: { start: number; end: number; text: string }[],
-  ): Promise<void> {
-    if (texts.length === 0) {
-      vscode.window.showInformationMessage('적용할 한글 텍스트가 없습니다.');
-      return;
-    }
-
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showWarningMessage('활성 편집기가 없습니다.');
-      return;
-    }
-
-    // 미리보기 로직을 내부적으로 실행하여 수정사항 계산 (화면에 표시하지 않음)
-    this.calculateModifications(texts, ranges);
-
-    if (this.savedModifications.length === 0) {
-      vscode.window.showInformationMessage('적용할 변환사항이 없습니다.');
-      return;
-    }
-
-    const document = editor.document;
-    const edit = new vscode.WorkspaceEdit();
-
-    // 저장된 수정사항을 역순으로 적용 (뒤에서부터 앞으로)
-    const sortedModifications = this.savedModifications.sort((a, b) => b.start - a.start);
-
-    sortedModifications.forEach((mod) => {
-      const startPos = document.positionAt(mod.start);
-      const endPos = document.positionAt(mod.end);
-      const range = new vscode.Range(startPos, endPos);
-      edit.replace(document.uri, range, mod.replacement);
-    });
-
-    // 모든 수정사항을 한 번에 적용
-    await vscode.workspace.applyEdit(edit);
-
-    this.clearConversionPreview();
   }
 }
 

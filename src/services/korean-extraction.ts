@@ -420,8 +420,6 @@ class KoreanExtractionService {
           const extracted = this.extractKoreanFromVariableContent(content, positionMap[variableStart], 2);
           const variableEnd = match.index! + match[0].length; // processedText 내의 위치
 
-          console.log('extracted', extracted);
-          console.log('variableRanges', variableRanges);
           extractedRanges.push(...extracted);
           variableRanges.push({
             start: positionMap[variableStart],
