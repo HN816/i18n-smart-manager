@@ -1,4 +1,4 @@
-# i18n Manager
+# I18n Smart Manager
 
 한글 텍스트를 자동으로 추출하고 i18n 키로 변환하여 다국어 지원을 쉽게 만들어주는 VSCode 확장프로그램입니다.
 
@@ -34,7 +34,7 @@
 ## 빠른 시작
 
 ### 1. 확장 설치
-VSCode 익스텐션에서 "i18n Manager"를 검색하여 설치하세요.
+VSCode 익스텐션에서 "I18n Smart Manager"를 검색하여 설치하세요.
 
 ### 2. 모니터링 시작
 1. VSCode 사이드바에서 🌐아이콘 클릭
@@ -108,10 +108,10 @@ VSCode 익스텐션에서 "i18n Manager"를 검색하여 설치하세요.
 ## 사용법
 
 ### 명령어 팔레트
-- `Ctrl+Shift+P` → "i18n Manager" 검색하여 사용 가능한 명령어 확인
+- `Ctrl+Shift+P` → "I18n Smart Manager" 검색하여 사용 가능한 명령어 확인
 
 ### 사이드바 사용
-1. **i18n Manager** 패널에서 모든 기능 접근
+1. **I18n Smart Manager** 패널에서 모든 기능 접근
 2. 감지된 텍스트 목록 확인
 3. 개별 텍스트 제외/포함 설정
 4. i18n 변환 실행

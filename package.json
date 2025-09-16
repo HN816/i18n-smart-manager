@@ -1,11 +1,12 @@
 {
-  "name": "i18n-manager",
-  "displayName": "i18n Manager",
-  "description": "한글 텍스트 추출 및 i18n 관리 익스텐션",
+  "name": "i18n-smart-manager",
+  "displayName": "I18n Smart Manager",
+  "description": "Korean text extraction and i18n management extension",
   "version": "0.0.1",
+  "publisher": "hyen",
   "repository": {
     "type": "git",
-    "url": "https://github.com/HN816/i18n-manager.git"
+    "url": "https://github.com/HN816/i18n-smart-manager.git"
   },
   "engines": {
     "vscode": "^1.83.0"
@@ -16,86 +17,87 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "dependencies": {
+    "@vscode/vsce": "^3.6.0",
     "google-spreadsheet": "^3.3.0"
   },
   "contributes": {
     "commands": [
       {
-        "command": "i18n-manager.start",
-        "title": "i18n Manager: 모니터링 시작",
-        "description": "I18n Manager: Start monitoring Korean texts",
+        "command": "i18n-smart-manager.start",
+        "title": "I18n Smart Manager: 모니터링 시작",
+        "description": "I18n Smart Manager: Start monitoring Korean texts",
         "icon": "$(eye)"
       },
       {
-        "command": "i18n-manager.stop",
-        "title": "i18n Manager: 모니터링 중지",
-        "description": "I18n Manager: Stop monitoring Korean texts",
+        "command": "i18n-smart-manager.stop",
+        "title": "I18n Smart Manager: 모니터링 중지",
+        "description": "I18n Smart Manager: Stop monitoring Korean texts",
         "icon": "$(eye-closed)"
       },
       {
-        "command": "i18n-manager.refresh",
-        "title": "i18n Manager: 새로고침",
-        "description": "I18n Manager: Refresh Korean text detection",
+        "command": "i18n-smart-manager.refresh",
+        "title": "I18n Smart Manager: 새로고침",
+        "description": "I18n Smart Manager: Refresh Korean text detection",
         "icon": "$(refresh)"
       },
       {
-        "command": "i18n-manager.convertAll",
-        "title": "i18n Manager: 전체 변환",
-        "description": "I18n Manager: Convert all Korean texts to i18n keys",
+        "command": "i18n-smart-manager.convertAll",
+        "title": "I18n Smart Manager: 전체 변환",
+        "description": "I18n Smart Manager: Convert all Korean texts to i18n keys",
         "icon": "$(wand)"
       },
       {
-        "command": "i18n-manager.exclude",
-        "title": "i18n Manager: 제외하기",
-        "description": "I18n Manager: Exclude text from conversion",
+        "command": "i18n-smart-manager.exclude",
+        "title": "I18n Smart Manager: 제외하기",
+        "description": "I18n Smart Manager: Exclude text from conversion",
         "icon": "$(x)"
       },
       {
-        "command": "i18n-manager.include",
-        "title": "i18n Manager: 포함하기",
-        "description": "I18n Manager: Include text in conversion",
+        "command": "i18n-smart-manager.include",
+        "title": "I18n Smart Manager: 포함하기",
+        "description": "I18n Smart Manager: Include text in conversion",
         "icon": "$(check)"
       },
       {
-        "command": "i18n-manager.goToText",
-        "title": "i18n Manager: 위치로 이동",
-        "description": "I18n Manager: Go to text location",
+        "command": "i18n-smart-manager.goToText",
+        "title": "I18n Smart Manager: 위치로 이동",
+        "description": "I18n Smart Manager: Go to text location",
         "icon": "$(location)"
       },
       {
-        "command": "i18n-manager.previewConversion",
-        "title": "i18n Manager: 변환 미리보기",
-        "description": "I18n Manager: Preview conversion results",
+        "command": "i18n-smart-manager.previewConversion",
+        "title": "I18n Smart Manager: 변환 미리보기",
+        "description": "I18n Smart Manager: Preview conversion results",
         "icon": "$(eye)"
       },
       {
-        "command": "i18n-manager.clearPreview",
-        "title": "i18n Manager: 미리보기 제거",
-        "description": "I18n Manager: Clear conversion preview",
+        "command": "i18n-smart-manager.clearPreview",
+        "title": "I18n Smart Manager: 미리보기 제거",
+        "description": "I18n Smart Manager: Clear conversion preview",
         "icon": "$(x)"
       },
       {
-        "command": "i18n-manager.addSelected",
-        "title": "i18n Manager: 선택된 텍스트 추가",
-        "description": "I18n Manager: Add selected text to pending list",
+        "command": "i18n-smart-manager.addSelected",
+        "title": "I18n Smart Manager: 선택된 텍스트 추가",
+        "description": "I18n Smart Manager: Add selected text to pending list",
         "icon": "$(add)"
       },
       {
-        "command": "i18n-manager.generateLocales",
-        "title": "i18n Manager: locales 파일 생성",
-        "description": "I18n Manager: Generate locales files",
+        "command": "i18n-smart-manager.generateLocales",
+        "title": "I18n Smart Manager: locales 파일 생성",
+        "description": "I18n Smart Manager: Generate locales files",
         "icon": "$(file-code)"
       },
       {
-        "command": "i18n-manager.uploadToSpreadsheet",
-        "title": "i18n Manager: 구글 시트 업로드",
-        "description": "I18n Manager: Upload locales files to Google Sheets",
+        "command": "i18n-smart-manager.uploadToSpreadsheet",
+        "title": "I18n Smart Manager: 구글 시트 업로드",
+        "description": "I18n Smart Manager: Upload locales files to Google Sheets",
         "icon": "$(go-to-file)"
       }
     ],
     "keybindings": [
       {
-        "command": "i18n-manager.addSelected",
+        "command": "i18n-smart-manager.addSelected",
         "key": "ctrl+shift+a",
         "when": "editorTextFocus"
       }
@@ -103,94 +105,94 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "i18n-manager.exclude",
+          "command": "i18n-smart-manager.exclude",
           "when": "false"
         },
         {
-          "command": "i18n-manager.include",
+          "command": "i18n-smart-manager.include",
           "when": "false"
         },
         {
-          "command": "i18n-manager.goToText",
+          "command": "i18n-smart-manager.goToText",
           "when": "false"
         }
       ],
       "view/title": [
         {
-          "command": "i18n-manager.refresh",
+          "command": "i18n-smart-manager.refresh",
           "when": "view == i18nManager",
           "group": "navigation@1"
         },
         {
-          "command": "i18n-manager.start",
+          "command": "i18n-smart-manager.start",
           "when": "view == i18nManager && !i18nManager.isActive",
           "group": "navigation@2"
         },
         {
-          "command": "i18n-manager.stop",
+          "command": "i18n-smart-manager.stop",
           "when": "view == i18nManager && i18nManager.isActive",
           "group": "navigation@3"
         },
         {
-          "command": "i18n-manager.generateLocales",
+          "command": "i18n-smart-manager.generateLocales",
           "when": "view == i18nManager && i18nManager.isActive",
           "group": "navigation@4"
         },
         {
-          "command": "i18n-manager.convertAll",
+          "command": "i18n-smart-manager.convertAll",
           "when": "view == i18nManager && i18nManager.isActive",
           "group": "navigation@5"
         },
         {
-          "command": "i18n-manager.uploadToSpreadsheet",
+          "command": "i18n-smart-manager.uploadToSpreadsheet",
           "when": "view == i18nManager && !i18nManager.isActive",
           "group": "navigation@6"
         }
       ],
       "view/item/context": [
         {
-          "command": "i18n-manager.exclude",
+          "command": "i18n-smart-manager.exclude",
           "when": "view == i18nManager && viewItem == korean-text",
           "group": "inline"
         },
         {
-          "command": "i18n-manager.include",
+          "command": "i18n-smart-manager.include",
           "when": "view == i18nManager && viewItem == excluded-text",
           "group": "inline"
         },
         {
-          "command": "i18n-manager.goToText",
+          "command": "i18n-smart-manager.goToText",
           "when": "view == i18nManager && (viewItem == korean-text || viewItem == i18n-text)",
           "group": "inline"
         }
       ],
       "editor/context": [
         {
-          "command": "i18n-manager.addSelected",
+          "command": "i18n-smart-manager.addSelected",
           "when": "editorTextFocus",
-          "group": "i18n-manager"
+          "group": "i18n-smart-manager"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "i18n-manager",
-          "title": "i18n Manager",
+          "id": "i18n-smart-manager",
+          "title": "I18n Smart Manager",
           "icon": "$(globe)"
         }
       ]
     },
     "views": {
-      "i18n-manager": [
+      "i18n-smart-manager": [
         {
           "id": "i18nManager",
-          "name": "i18n Manager"
+          "name": "I18n Smart Manager"
         }
       ]
     },
     "configuration": {
-      "title": "i18n Manager",
+      "title": "I18n Smart Manager",
       "properties": {
         "i18nManager.keyGeneration.customFunction": {
           "type": "string",
@@ -253,15 +255,16 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.83.0",
+    "@types/google-spreadsheet": "^3.3.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.83.0",
     "@typescript-eslint/eslint-plugin": "^6.20.0",
     "@typescript-eslint/parser": "^6.20.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.4.5",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.3.0",
-    "@types/google-spreadsheet": "^3.3.0"
-  }
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5"
+  },
+  "license": "MIT"
 }

@@ -5,17 +5,17 @@ import { highlightText, clearDecorations } from '../services/text-highlighting';
 
 export function registerMonitoringCommands(context: vscode.ExtensionContext): void {
   // Start 명령어 등록
-  const startCommand = vscode.commands.registerCommand('i18n-manager.start', () => {
+  const startCommand = vscode.commands.registerCommand('i18n-smart-manager.start', () => {
     startMonitoring();
   });
 
   // Stop 명령어 등록
-  const stopCommand = vscode.commands.registerCommand('i18n-manager.stop', () => {
+  const stopCommand = vscode.commands.registerCommand('i18n-smart-manager.stop', () => {
     stopMonitoring();
   });
 
   // 새로고침 명령어 등록
-  const refreshCommand = vscode.commands.registerCommand('i18n-manager.refresh', () => {
+  const refreshCommand = vscode.commands.registerCommand('i18n-smart-manager.refresh', () => {
     if (stateManager.isMonitoring()) {
       // 사용자 제외 목록 초기화
       stateManager.getTreeDataProvider().clearExcludedTexts();

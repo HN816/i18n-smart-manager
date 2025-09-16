@@ -5,13 +5,13 @@ import { uploadLocalesToSpreadsheet } from '../services/spreadsheet';
 
 export function registerLocalesCommands(context: vscode.ExtensionContext): void {
   // locales.json 생성 명령어 등록
-  const generateLocalesCommand = vscode.commands.registerCommand('i18n-manager.generateLocales', async () => {
+  const generateLocalesCommand = vscode.commands.registerCommand('i18n-smart-manager.generateLocales', async () => {
     const filteredTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
     await showLocalesGenerationDialog(filteredTexts);
   });
 
   // 스프레드시트 업로드 명령어 등록
-  const uploadToSpreadsheetCommand = vscode.commands.registerCommand('i18n-manager.uploadToSpreadsheet', () => {
+  const uploadToSpreadsheetCommand = vscode.commands.registerCommand('i18n-smart-manager.uploadToSpreadsheet', () => {
     uploadLocalesToSpreadsheet();
   });
 

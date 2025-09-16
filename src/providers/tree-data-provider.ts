@@ -74,7 +74,7 @@ export class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
         treeItem.tooltip = `Korean text: ${item.text}${item.range ? ` (${item.range.start}-${item.range.end})` : ''}`;
         treeItem.contextValue = 'korean-text';
         treeItem.command = {
-          command: 'i18n-manager.goToText',
+          command: 'i18n-smart-manager.goToText',
           title: 'Go to Text',
           arguments: [treeItem],
         };
@@ -88,7 +88,7 @@ export class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
         treeItem.tooltip = `i18n applied: ${item.text}${item.range ? ` (${item.range.start}-${item.range.end})` : ''}`;
         treeItem.contextValue = 'i18n-text';
         treeItem.command = {
-          command: 'i18n-manager.goToText',
+          command: 'i18n-smart-manager.goToText',
           title: 'Go to Text',
           arguments: [treeItem],
         };

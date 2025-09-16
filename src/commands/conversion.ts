@@ -10,7 +10,7 @@ import {
 
 export function registerConversionCommands(context: vscode.ExtensionContext): void {
   // 변환 미리보기 명령어 등록
-  const previewCommand = vscode.commands.registerCommand('i18n-manager.previewConversion', async () => {
+  const previewCommand = vscode.commands.registerCommand('i18n-smart-manager.previewConversion', async () => {
     const filteredTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
 
     if (filteredTexts.length === 0) {
@@ -45,12 +45,12 @@ export function registerConversionCommands(context: vscode.ExtensionContext): vo
   });
 
   // 미리보기 제거 명령어 등록
-  const clearPreviewCommand = vscode.commands.registerCommand('i18n-manager.clearPreview', () => {
+  const clearPreviewCommand = vscode.commands.registerCommand('i18n-smart-manager.clearPreview', () => {
     clearConversionPreview();
   });
 
   // 전체 변환 명령어 등록
-  const convertAllCommand = vscode.commands.registerCommand('i18n-manager.convertAll', async () => {
+  const convertAllCommand = vscode.commands.registerCommand('i18n-smart-manager.convertAll', async () => {
     const filteredTexts = stateManager.getTreeDataProvider().getFilteredKoreanTexts();
 
     if (filteredTexts.length === 0) {
