@@ -1,4 +1,5 @@
 import type { TranslationService } from '../types';
+import { removeQuotes } from '../utils';
 
 // DeepL 번역 서비스
 class DeepLTranslationService implements TranslationService {
@@ -17,6 +18,7 @@ class DeepLTranslationService implements TranslationService {
     };
 
     const targetLanguage = languageMap[targetLang] || targetLang;
+    const targetText = removeQuotes(text);
 
     try {
       const response = await fetch('https://api-free.deepl.com/v2/translate', {
@@ -26,7 +28,7 @@ class DeepLTranslationService implements TranslationService {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          text: text,
+          text: targetText,
           target_lang: targetLanguage,
           source_lang: 'KO', // 한국어에서 번역
         }),

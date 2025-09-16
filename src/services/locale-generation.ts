@@ -3,7 +3,7 @@ import { convertToI18nKey, extractVariables } from './text-conversion';
 import { translateTexts } from './translation';
 import * as path from 'path';
 import type { LocaleEntry } from '../types';
-import { getFileType } from '../utils';
+import { getFileType, removeQuotes } from '../utils';
 
 class LocalesGenerationService {
   // 프로젝트 루트 경로를 가져오는 헬퍼 함수
@@ -54,10 +54,6 @@ class LocalesGenerationService {
       en: '영어',
       ja: '일본어',
       zh: '중국어',
-      es: '스페인어',
-      fr: '프랑스어',
-      de: '독일어',
-      ru: '러시아어',
     };
 
     return languageMap[languageCode] || languageCode.toUpperCase();
@@ -114,12 +110,12 @@ class LocalesGenerationService {
       if (variableInfo.variables.length === 0) {
         // 변수가 없는 경우
         key = convertToI18nKey(text);
-        value = text;
+        value = removeQuotes(text);
       } else {
         // 변수가 있는 경우 - 키는 템플릿 기반, 값은 i18n 키 형식으로 변환
         key = convertToI18nKey(variableInfo.template);
         // 변수를 i18n 키 형식으로 변환 ({{ }} 형태를 {숫자} 형태로)
-        let i18nValue = text;
+        let i18nValue = removeQuotes(text);
         let index = 0;
 
         // ${} 형태 변수를 {숫자} 형태로 변환

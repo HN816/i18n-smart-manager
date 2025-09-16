@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { VariableInfo, Modification } from '../types';
-import { getFileType, isQuotedText } from '../utils';
+import { getFileType, isQuotedText, removeQuotes } from '../utils';
 
 // 텍스트 변환 서비스 클래스
 class TextConversionService {
@@ -348,14 +348,7 @@ class TextConversionService {
     );
 
     // 따옴표로 감싸진 텍스트인 경우 시작과 끝의 따옴표 제거
-    let cleanText = text;
-    if (
-      (text.startsWith('"') && text.endsWith('"')) ||
-      (text.startsWith("'") && text.endsWith("'")) ||
-      (text.startsWith('`') && text.endsWith('`'))
-    ) {
-      cleanText = text.slice(1, -1);
-    }
+    const cleanText = removeQuotes(text);
 
     return this.executeCustomFunction(customFunction, cleanText);
   }
