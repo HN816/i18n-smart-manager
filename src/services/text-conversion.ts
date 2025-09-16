@@ -6,6 +6,17 @@ import { getFileType, isQuotedText } from '../utils';
 class TextConversionService {
   private currentPreviewDecoration: vscode.TextEditorDecorationType | null = null;
   private savedModifications: Modification[] = [];
+  private currentNamespace: string = '';
+
+  // 네임스페이스 설정
+  setNamespace(namespace: string): void {
+    this.currentNamespace = namespace;
+  }
+
+  // 네임스페이스 가져오기
+  getNamespace(): string {
+    return this.currentNamespace;
+  }
 
   // 커스텀 함수를 안전하게 실행하는 함수
   private executeCustomFunction(customCode: string, text: string): string {
@@ -38,12 +49,14 @@ class TextConversionService {
     if (variableInfo.variables.length === 0) {
       // 변수가 없는 경우 기존 로직 사용
       const i18nKey = this.convertToI18nKey(text);
-      i18nFunction = `t('${i18nKey}')`;
+      const fullKey = this.currentNamespace ? `${this.currentNamespace}.${i18nKey}` : i18nKey;
+      i18nFunction = `t('${fullKey}')`;
     } else {
       // 변수가 있는 경우 템플릿 기반으로 변환
       const templateKey = this.convertToI18nKey(variableInfo.template);
+      const fullKey = this.currentNamespace ? `${this.currentNamespace}.${templateKey}` : templateKey;
       const variablesArray = variableInfo.variables.join(', ');
-      i18nFunction = `t('${templateKey}', [${variablesArray}])`;
+      i18nFunction = `t('${fullKey}', [${variablesArray}])`;
     }
 
     if (isQuotedText(text)) {
@@ -352,6 +365,8 @@ const service = new TextConversionService();
 
 export const extractVariables = (text: string) => service.extractVariables(text);
 export const convertToI18nKey = (text: string) => service.convertToI18nKey(text);
+export const setNamespace = (namespace: string) => service.setNamespace(namespace);
+export const getNamespace = () => service.getNamespace();
 export const highlightConversionTargets = (texts: string[], ranges: { start: number; end: number; text: string }[]) =>
   service.highlightConversionTargets(texts, ranges);
 export const clearConversionPreview = () => service.clearConversionPreview();
