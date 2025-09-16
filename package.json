@@ -18,73 +18,73 @@
     "commands": [
       {
         "command": "i18n-manager.start",
-        "title": "시작",
+        "title": "i18n Manager: 모니터링 시작",
         "description": "I18n Manager: Start monitoring Korean texts",
         "icon": "$(eye)"
       },
       {
         "command": "i18n-manager.stop",
-        "title": "중지",
+        "title": "i18n Manager: 모니터링 중지",
         "description": "I18n Manager: Stop monitoring Korean texts",
         "icon": "$(eye-closed)"
       },
       {
         "command": "i18n-manager.refresh",
-        "title": "새로고침",
+        "title": "i18n Manager: 새로고침",
         "description": "I18n Manager: Refresh Korean text detection",
         "icon": "$(refresh)"
       },
       {
         "command": "i18n-manager.convertAll",
-        "title": "전체 변환",
+        "title": "i18n Manager: 전체 변환",
         "description": "I18n Manager: Convert all Korean texts to i18n keys",
         "icon": "$(wand)"
       },
       {
         "command": "i18n-manager.exclude",
-        "title": "제외하기",
+        "title": "i18n Manager: 제외하기",
         "description": "I18n Manager: Exclude text from conversion",
         "icon": "$(x)"
       },
       {
         "command": "i18n-manager.include",
-        "title": "포함하기",
+        "title": "i18n Manager: 포함하기",
         "description": "I18n Manager: Include text in conversion",
         "icon": "$(check)"
       },
       {
         "command": "i18n-manager.goToText",
-        "title": "위치로 이동",
+        "title": "i18n Manager: 위치로 이동",
         "description": "I18n Manager: Go to text location",
         "icon": "$(location)"
       },
       {
         "command": "i18n-manager.previewConversion",
-        "title": "변환 미리보기",
+        "title": "i18n Manager: 변환 미리보기",
         "description": "I18n Manager: Preview conversion results",
         "icon": "$(eye)"
       },
       {
         "command": "i18n-manager.clearPreview",
-        "title": "미리보기 제거",
+        "title": "i18n Manager: 미리보기 제거",
         "description": "I18n Manager: Clear conversion preview",
         "icon": "$(x)"
       },
       {
         "command": "i18n-manager.addSelected",
-        "title": "선택된 텍스트 추가",
+        "title": "i18n Manager: 선택된 텍스트 추가",
         "description": "I18n Manager: Add selected text to pending list",
         "icon": "$(add)"
       },
       {
         "command": "i18n-manager.generateLocales",
-        "title": "locales 파일 생성",
+        "title": "i18n Manager: locales 파일 생성",
         "description": "I18n Manager: Generate locales files",
         "icon": "$(file-code)"
       },
       {
         "command": "i18n-manager.uploadToSpreadsheet",
-        "title": "Upload Locales to Google Sheets",
+        "title": "i18n Manager: 구글 시트 업로드",
         "description": "I18n Manager: Upload locales files to Google Sheets",
         "icon": "$(go-to-file)"
       }
@@ -97,6 +97,20 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "i18n-manager.exclude",
+          "when": "false"
+        },
+        {
+          "command": "i18n-manager.include",
+          "when": "false"
+        },
+        {
+          "command": "i18n-manager.goToText",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "i18n-manager.refresh",
@@ -124,14 +138,9 @@
           "group": "navigation@5"
         },
         {
-          "command": "i18n-manager.generateLocales",
-          "when": "view == i18nManager && i18nManager.isActive",
-          "group": "navigation@6"
-        },
-        {
           "command": "i18n-manager.uploadToSpreadsheet",
           "when": "view == i18nManager && !i18nManager.isActive",
-          "group": "navigation@7"
+          "group": "navigation@6"
         }
       ],
       "view/item/context": [
