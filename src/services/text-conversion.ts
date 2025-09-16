@@ -346,8 +346,8 @@ class TextConversionService {
         index++;
       }
     } else if (fileType === 'tsx') {
-      // {} 형태 변수 찾기
-      const jsxBraceMatches = text.matchAll(/\{\s*([^}]+)\s*\}/g);
+      // {} 형태 변수 찾기 (${} 형태 제외)
+      const jsxBraceMatches = text.matchAll(/(?<!\$)\{\s*([^}]+)\s*\}/g);
       for (const match of jsxBraceMatches) {
         const variableName = match[1].trim();
         variables.push(variableName);

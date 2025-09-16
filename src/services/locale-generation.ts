@@ -162,18 +162,19 @@ class LocalesGenerationService {
       } else {
         // 변수가 있는 경우 - 키는 템플릿 기반, 값은 i18n 키 형식으로 변환
         key = convertToI18nKey(variableInfo.template);
-        // 변수를 i18n 키 형식으로 변환 ({{ }} 형태를 {숫자} 형태로)
+
         let i18nValue = removeQuotes(text);
         let index = 0;
 
-        // ${} 형태 변수를 {숫자} 형태로 변환
-        i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
 
         if (fileType === 'vue') {
           i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
         } else if (fileType === 'tsx') {
-          i18nValue = i18nValue.replace(/\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
+          i18nValue = i18nValue.replace(/(?<!\$)\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
         }
+        // ${} 형태 변수를 {숫자} 형태로 변환
+        i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
+
 
         value = i18nValue;
       }
@@ -319,18 +320,19 @@ class LocalesGenerationService {
       } else {
         // 변수가 있는 경우 - 키는 템플릿 기반, 값은 i18n 키 형식으로 변환
         key = convertToI18nKey(variableInfo.template);
-        // 변수를 i18n 키 형식으로 변환 ({{ }} 형태를 {숫자} 형태로)
+        // 변수를 i18n 키 형식으로 변환
         let i18nValue = translatedText;
         let index = 0;
 
-        // ${} 형태 변수를 {숫자} 형태로 변환
-        i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
 
         if (fileType === 'vue') {
           i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
         } else if (fileType === 'tsx') {
-          i18nValue = i18nValue.replace(/\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
+          i18nValue = i18nValue.replace(/(?<!\$)\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
         }
+        // ${} 형태 변수를 {숫자} 형태로 변환
+        i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
+
 
         value = i18nValue;
       }
