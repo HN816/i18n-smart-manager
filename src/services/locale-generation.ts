@@ -35,12 +35,58 @@ class LocalesGenerationService {
     return path; // 이미 절대 경로인 경우
   }
 
-  // 기존 JSON 파일을 읽어오는 함수
+  // 중첩된 JSON 객체를 평면화하는 헬퍼 메서드
+  private flattenJson(obj: any, prefix: string = ''): { [key: string]: any } {
+    const flattened: { [key: string]: any } = {};
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const newKey = prefix ? `${prefix}.${key}` : key;
+
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          // 중첩된 객체인 경우 재귀적으로 평면화
+          Object.assign(flattened, this.flattenJson(obj[key], newKey));
+        } else {
+          // 원시 값이거나 배열인 경우 그대로 저장
+          flattened[newKey] = obj[key];
+        }
+      }
+    }
+
+    return flattened;
+  }
+
+  // 평면화된 객체를 중첩된 구조로 변환하는 헬퍼 메서드
+  private unflattenJson(flattened: { [key: string]: any }): any {
+    const result: any = {};
+
+    for (const key in flattened) {
+      const keys = key.split('.');
+      let current = result;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        const currentKey = keys[i];
+        if (!(currentKey in current)) {
+          current[currentKey] = {};
+        }
+        current = current[currentKey];
+      }
+
+      current[keys[keys.length - 1]] = flattened[key];
+    }
+
+    return result;
+  }
+
+  // 기존 JSON 파일을 읽어오는 함수 (중첩 구조 지원)
   private async readExistingLocales(filePath: string): Promise<{ [key: string]: string }> {
     try {
       const fileContent = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
       const jsonString = new TextDecoder().decode(fileContent);
-      return JSON.parse(jsonString);
+      const jsonData = JSON.parse(jsonString);
+
+      // 중첩된 구조를 평면화하여 반환
+      return this.flattenJson(jsonData);
     } catch (error) {
       // 파일이 없거나 파싱 오류인 경우 빈 객체 반환
       return {};
@@ -66,6 +112,7 @@ class LocalesGenerationService {
     language: string = 'ko',
     outputPath?: string,
     showNotifications: boolean = true, // 알림 표시 여부 제어
+    namespace?: string,
   ): Promise<void> {
     if (texts.length === 0) {
       if (showNotifications) {
@@ -131,43 +178,50 @@ class LocalesGenerationService {
         value = i18nValue;
       }
 
+      // 네임스페이스가 있으면 키에 추가
+      const fullKey = namespace ? `${namespace}.${key}` : key;
+
       // 중복 키가 있는지 확인
-      if (existingKeys.has(key)) {
-        skippedKeys.push(key);
+      if (existingKeys.has(fullKey)) {
+        skippedKeys.push(fullKey);
         continue; // 중복 키는 건너뛰기
       }
 
       // 중복 키 처리 - 같은 텍스트는 같은 키 사용
-      if (usedKeys.has(key)) {
-        skippedKeys.push(key);
+      if (usedKeys.has(fullKey)) {
+        skippedKeys.push(fullKey);
         continue; // 이미 처리된 키는 건너뛰기
       }
-      usedKeys.add(key);
-      newKeys.push(key);
+      usedKeys.add(fullKey);
+      newKeys.push(fullKey);
 
       localeEntries.push({
-        key: key,
+        key: fullKey,
         value: value,
         variables: variableInfo.variables.length > 0 ? variableInfo.variables : undefined,
       });
     }
 
-    // 기존 locales와 새로운 locales 병합
+    // 기존 locales와 새로운 locales 병합 (평면화된 형태로)
     const mergedLocales = { ...existingLocales };
     localeEntries.forEach((entry) => {
       mergedLocales[entry.key] = entry.value;
     });
 
+    // 평면화된 객체를 중첩된 구조로 변환
+    const nestedLocales = this.unflattenJson(mergedLocales);
+
     // JSON 파일로 저장
     try {
-      const jsonContent = JSON.stringify(mergedLocales, null, 2);
+      const jsonContent = JSON.stringify(nestedLocales, null, 2);
       await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(jsonContent));
 
       const languageName = this.getLanguageName(language);
       const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
+      const namespaceText = namespace ? ` (${namespace} 네임스페이스)` : ' (루트 레벨)';
 
       // 결과 메시지 구성
-      let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}\n`;
+      let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}${namespaceText}\n`;
       message += `새로 추가된 항목: ${newKeys.length}개\n`;
       if (skippedKeys.length > 0) {
         message += `중복 키로 인해 건너뛴 항목: ${skippedKeys.length}개`;
@@ -211,6 +265,7 @@ class LocalesGenerationService {
     language: string,
     outputPath?: string,
     showNotifications: boolean = true, // 알림 표시 여부 제어
+    namespace?: string,
   ): Promise<void> {
     if (originalTexts.length === 0) {
       if (showNotifications) {
@@ -280,43 +335,50 @@ class LocalesGenerationService {
         value = i18nValue;
       }
 
+      // 네임스페이스가 있으면 키에 추가
+      const fullKey = namespace ? `${namespace}.${key}` : key;
+
       // 중복 키가 있는지 확인
-      if (existingKeys.has(key)) {
-        skippedKeys.push(key);
+      if (existingKeys.has(fullKey)) {
+        skippedKeys.push(fullKey);
         continue; // 중복 키는 건너뛰기
       }
 
       // 중복 키 처리 - 같은 텍스트는 같은 키 사용
-      if (usedKeys.has(key)) {
-        skippedKeys.push(key);
+      if (usedKeys.has(fullKey)) {
+        skippedKeys.push(fullKey);
         continue; // 이미 처리된 키는 건너뛰기
       }
-      usedKeys.add(key);
-      newKeys.push(key);
+      usedKeys.add(fullKey);
+      newKeys.push(fullKey);
 
       localeEntries.push({
-        key: key,
+        key: fullKey,
         value: value,
         variables: variableInfo.variables.length > 0 ? variableInfo.variables : undefined,
       });
     }
 
-    // 기존 locales와 새로운 locales 병합
+    // 기존 locales와 새로운 locales 병합 (평면화된 형태로)
     const mergedLocales = { ...existingLocales };
     localeEntries.forEach((entry) => {
       mergedLocales[entry.key] = entry.value;
     });
 
+    // 평면화된 객체를 중첩된 구조로 변환
+    const nestedLocales = this.unflattenJson(mergedLocales);
+
     // JSON 파일로 저장
     try {
-      const jsonContent = JSON.stringify(mergedLocales, null, 2);
+      const jsonContent = JSON.stringify(nestedLocales, null, 2);
       await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(jsonContent));
 
       const languageName = this.getLanguageName(language);
       const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
+      const namespaceText = namespace ? ` (${namespace} 네임스페이스)` : ' (루트 레벨)';
 
       // 결과 메시지 구성
-      let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}\n`;
+      let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}${namespaceText}\n`;
       message += `새로 추가된 항목: ${newKeys.length}개\n`;
       if (skippedKeys.length > 0) {
         message += `중복 키로 인해 건너뛴 항목: ${skippedKeys.length}개`;
@@ -436,16 +498,28 @@ class LocalesGenerationService {
           return;
         }
 
+        // 언어 선택 후 네임스페이스 입력받기
+        const namespace = await vscode.window.showInputBox({
+          prompt: `네임스페이스 입력 (선택사항)\n`,
+          placeHolder: 'common → common.안녕하세요 (빈 값이면 루트 레벨)',
+          value: '',
+          ignoreFocusOut: true,
+        });
+
+        if (namespace === undefined) {
+          return; // 사용자가 취소한 경우
+        }
+
         if (selectedLanguage === 'all') {
           // 전체 언어 생성 (활성화된 언어들)
           const allLanguages = activeLanguages.map((lang) => lang.code);
-          await this.generateAllLanguages(fileType, texts, allLanguages);
+          await this.generateAllLanguages(fileType, texts, allLanguages, namespace);
         } else if (selectedLanguage === 'ko') {
           // 한국어는 바로 생성
-          await this.generateLocalesJson(fileType, texts, selectedLanguage);
+          await this.generateLocalesJson(fileType, texts, selectedLanguage, undefined, true, namespace);
         } else {
           // 다른 언어는 DeepL로 번역 후 생성
-          await this.generateLocalesWithDeepL(fileType, texts, selectedLanguage);
+          await this.generateLocalesWithDeepL(fileType, texts, selectedLanguage, namespace);
         }
       }
     });
@@ -454,7 +528,7 @@ class LocalesGenerationService {
   }
 
   // DeepL로 번역과 함께 locales 파일 생성
-  private async generateLocalesWithDeepL(fileType: FileType, texts: string[], language: string): Promise<void> {
+  private async generateLocalesWithDeepL(fileType: FileType, texts: string[], language: string, namespace?: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('i18nManager.translation');
     const apiKey = config.get<string>('deeplApiKey', '');
 
@@ -501,7 +575,7 @@ class LocalesGenerationService {
           });
 
           // 번역된 텍스트로 locales 파일 생성
-          await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language);
+          await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language, undefined, true, namespace);
 
           // 4단계: 완료
           progress.report({
@@ -516,7 +590,7 @@ class LocalesGenerationService {
   }
 
   // 모든 언어로 locales 파일 생성하는 함수
-  private async generateAllLanguages(fileType: FileType, texts: string[], languages?: string[]): Promise<void> {
+  private async generateAllLanguages(fileType: FileType, texts: string[], languages?: string[], namespace?: string): Promise<void> {
     // 언어 목록이 제공되지 않으면 설정에서 활성화된 언어들 사용
     if (!languages) {
       const config = vscode.workspace.getConfiguration('i18nManager.locales');
@@ -545,25 +619,25 @@ class LocalesGenerationService {
 
         if (newApiKey) {
           // API 키가 설정되었으면 모든 언어로 생성
-          await this.generateAllLanguagesWithDeepL(fileType, texts, languages);
+          await this.generateAllLanguagesWithDeepL(fileType, texts, languages, namespace);
         } else {
           // 여전히 API 키가 없으면 한국어만 생성
-          await this.generateLocalesJson(fileType, texts, 'ko');
+          await this.generateLocalesJson(fileType, texts, 'ko', undefined, true, namespace);
           vscode.window.showInformationMessage('한국어 파일만 생성되었습니다.');
         }
       } else if (result === '한국어만 생성') {
-        await this.generateLocalesJson(fileType, texts, 'ko');
+        await this.generateLocalesJson(fileType, texts, 'ko', undefined, true, namespace);
         vscode.window.showInformationMessage('한국어 파일이 생성되었습니다.');
       }
       return;
     }
 
     // DeepL로 모든 언어 생성
-    await this.generateAllLanguagesWithDeepL(fileType, texts, languages);
+    await this.generateAllLanguagesWithDeepL(fileType, texts, languages, namespace);
   }
 
   // DeepL로 모든 언어 생성하는 별도 함수
-  private async generateAllLanguagesWithDeepL(fileType: FileType, texts: string[], languages: string[]): Promise<void> {
+  private async generateAllLanguagesWithDeepL(fileType: FileType, texts: string[], languages: string[], namespace?: string): Promise<void> {
     let successCount = 0;
     let totalCount = languages.length;
 
@@ -592,7 +666,7 @@ class LocalesGenerationService {
                   message: `${languageName} 파일 생성 중...`,
                   increment: 0,
                 });
-                await this.generateLocalesJson(fileType, texts, language, undefined, false);
+                await this.generateLocalesJson(fileType, texts, language, undefined, false, namespace);
               } else {
                 // 다른 언어는 DeepL로 번역
                 progress.report({
@@ -623,7 +697,7 @@ class LocalesGenerationService {
                 });
 
                 // 알림 비활성화
-                await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language, undefined, false);
+                await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language, undefined, false, namespace);
               }
               successCount++;
             } catch (error: any) {
