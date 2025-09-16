@@ -1,12 +1,6 @@
 import type { FileType } from '../types';
-import * as vscode from 'vscode';
 
-export function getFileType(fileNm?: string): FileType | false {
-    let fileName = fileNm;
-    if (!fileName) {
-        fileName = vscode.window.activeTextEditor?.document.fileName ?? '';
-    }
-
+export function getFileType(fileName: string): FileType | false {
     if (fileName.toLowerCase().endsWith('.vue')) {
         return 'vue';
     } else if (fileName.toLowerCase().endsWith('.ts') || fileName.toLowerCase().endsWith('.js')) {

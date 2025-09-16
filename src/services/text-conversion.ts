@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { VariableInfo, Modification } from '../types';
+import type { VariableInfo, Modification, FileType } from '../types';
 import { getFileType, isQuotedText, removeQuotes } from '../utils';
 
 // 텍스트 변환 서비스 클래스
@@ -42,8 +42,8 @@ class TextConversionService {
   }
 
   // 변수 포함 텍스트를 i18n 형태로 변환
-  private convertTextWithVariables(text: string, range: { start: number; end: number; text: string }): string {
-    const variableInfo = this.extractVariables(text);
+  private convertTextWithVariables(fileType: FileType, text: string, range: { start: number; end: number; text: string }): string {
+    const variableInfo = this.extractVariables(fileType, text);
     let i18nFunction: string;
 
     if (variableInfo.variables.length === 0) {
@@ -63,11 +63,6 @@ class TextConversionService {
       return i18nFunction;
     }
 
-    const fileType = getFileType();
-    if (!fileType) {
-      return i18nFunction;
-    }
-
     const wrapperMap = {
       tsx: `{${i18nFunction}}`,
       vue: `{{${i18nFunction}}}`,
@@ -79,6 +74,7 @@ class TextConversionService {
 
   // 공통 변환 로직: 수정사항 계산 및 선택적 하이라이트
   private processConversions(
+    fileType: FileType,
     texts: string[],
     ranges: { start: number; end: number; text: string }[],
     shouldHighlight: boolean = false,
@@ -113,7 +109,7 @@ class TextConversionService {
 
         if (!isOverlapping) {
           // 변수 포함 텍스트 변환
-          const conversionPreview = this.convertTextWithVariables(text, range);
+          const conversionPreview = this.convertTextWithVariables(fileType, text, range);
 
           // 수정사항 저장
           this.savedModifications.push({
@@ -170,13 +166,18 @@ class TextConversionService {
   }
 
   // 미리보기 로직을 내부적으로 실행하는 헬퍼 함수 (화면에 표시하지 않음)
-  private calculateModifications(texts: string[], ranges: { start: number; end: number; text: string }[]): void {
-    this.processConversions(texts, ranges, false);
+  private calculateModifications(fileType: FileType, texts: string[], ranges: { start: number; end: number; text: string }[]): void {
+    this.processConversions(fileType, texts, ranges, false);
   }
 
   // 변환될 부분을 미리 하이라이트하는 함수
   highlightConversionTargets(texts: string[], ranges: { start: number; end: number; text: string }[]): void {
-    this.processConversions(texts, ranges, true);
+    const fileName = vscode.window.activeTextEditor?.document.fileName ?? '';
+    const fileType = getFileType(fileName);
+    if (!fileType) {
+      return;
+    }
+    this.processConversions(fileType, texts, ranges, true);
   }
 
   // 미리보기 하이라이트 제거 함수
@@ -203,8 +204,15 @@ class TextConversionService {
       return;
     }
 
+    const fileName = vscode.window.activeTextEditor?.document.fileName ?? '';
+    const fileType = getFileType(fileName);
+    if (!fileType) {
+      vscode.window.showWarningMessage('파일 타입을 확인할 수 없습니다.');
+      return;
+    }
+
     // 미리보기 로직을 내부적으로 실행하여 수정사항 계산 (화면에 표시하지 않음)
-    this.calculateModifications(texts, ranges);
+    this.calculateModifications(fileType, texts, ranges);
 
     if (this.savedModifications.length === 0) {
       vscode.window.showInformationMessage('적용할 변환사항이 없습니다.');
@@ -219,7 +227,7 @@ class TextConversionService {
 
     sortedModifications.forEach((mod) => {
       // props 바인딩 체크하여 mod 수정 (vue: key="{{t()}}" → :key="{t()}", tsx: key="{t()}" → key={t()})
-      const finalMod = this.checkAndFixPropsBinding(mod, document);
+      const finalMod = this.checkAndFixPropsBinding(fileType, mod, document);
 
       const startPos = document.positionAt(finalMod.start);
       const endPos = document.positionAt(finalMod.end);
@@ -235,8 +243,7 @@ class TextConversionService {
   }
 
   // props 바인딩 체크하여 mod 수정
-  private checkAndFixPropsBinding(mod: Modification, document: vscode.TextDocument): Modification {
-    const fileType = getFileType();
+  private checkAndFixPropsBinding(fileType: FileType, mod: Modification, document: vscode.TextDocument): Modification {
     if (!fileType || (fileType !== 'vue' && fileType !== 'tsx')) {
       return mod;
     }
@@ -315,7 +322,7 @@ class TextConversionService {
   }
 
   // 텍스트에서 변수 추출 및 템플릿 생성
-  extractVariables(text: string): VariableInfo {
+  extractVariables(fileType: FileType, text: string): VariableInfo {
     const variables: string[] = [];
     let template = text;
     let index = 0;
@@ -329,7 +336,6 @@ class TextConversionService {
       index++;
     }
 
-    const fileType = getFileType();
     if (fileType === 'vue') {
       // {{}} 형태 변수 찾기
       const braceMatches = text.matchAll(/\{\{\s*([^}]+)\s*\}\}/g);
@@ -374,7 +380,7 @@ class TextConversionService {
 
 const service = new TextConversionService();
 
-export const extractVariables = (text: string) => service.extractVariables(text);
+export const extractVariables = (fileType: FileType, text: string) => service.extractVariables(fileType, text);
 export const convertToI18nKey = (text: string) => service.convertToI18nKey(text);
 export const setNamespace = (namespace: string) => service.setNamespace(namespace);
 export const getNamespace = () => service.getNamespace();

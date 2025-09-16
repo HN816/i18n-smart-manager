@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { convertToI18nKey, extractVariables } from './text-conversion';
 import { translateTexts } from './translation';
 import * as path from 'path';
-import type { LocaleEntry } from '../types';
+import type { FileType, LocaleEntry } from '../types';
 import { getFileType, removeQuotes } from '../utils';
 
 class LocalesGenerationService {
@@ -61,6 +61,7 @@ class LocalesGenerationService {
 
   // locales.ko.json 파일 생성 함수
   private async generateLocalesJson(
+    fileType: FileType,
     texts: string[],
     language: string = 'ko',
     outputPath?: string,
@@ -103,7 +104,7 @@ class LocalesGenerationService {
     const newKeys: string[] = []; // 새로 추가된 키들
 
     for (const text of texts) {
-      const variableInfo = extractVariables(text);
+      const variableInfo = extractVariables(fileType, text);
       let key: string;
       let value: string;
 
@@ -121,7 +122,6 @@ class LocalesGenerationService {
         // ${} 형태 변수를 {숫자} 형태로 변환
         i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
 
-        const fileType = getFileType();
         if (fileType === 'vue') {
           i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
         } else if (fileType === 'tsx') {
@@ -205,6 +205,7 @@ class LocalesGenerationService {
 
   // 번역된 텍스트로 locales 파일 생성
   private async generateLocalesJsonWithTranslatedTexts(
+    fileType: FileType,
     originalTexts: string[],
     translatedTexts: string[],
     language: string,
@@ -252,7 +253,7 @@ class LocalesGenerationService {
       const originalText = originalTexts[i];
       const translatedText = translatedTexts[i];
 
-      const variableInfo = extractVariables(originalText);
+      const variableInfo = extractVariables(fileType, originalText);
       let key: string;
       let value: string;
 
@@ -270,7 +271,6 @@ class LocalesGenerationService {
         // ${} 형태 변수를 {숫자} 형태로 변환
         i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
 
-        const fileType = getFileType();
         if (fileType === 'vue') {
           i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
         } else if (fileType === 'tsx') {
@@ -359,6 +359,13 @@ class LocalesGenerationService {
       return;
     }
 
+    const fileName = vscode.window.activeTextEditor?.document.fileName ?? '';
+    const fileType = getFileType(fileName);
+    if (!fileType) {
+      vscode.window.showWarningMessage('파일 타입을 확인할 수 없습니다.');
+      return;
+    }
+
     // 지원하는 언어 목록
     const supportedLanguages = [
       {
@@ -432,13 +439,13 @@ class LocalesGenerationService {
         if (selectedLanguage === 'all') {
           // 전체 언어 생성 (활성화된 언어들)
           const allLanguages = activeLanguages.map((lang) => lang.code);
-          await this.generateAllLanguages(texts, allLanguages);
+          await this.generateAllLanguages(fileType, texts, allLanguages);
         } else if (selectedLanguage === 'ko') {
           // 한국어는 바로 생성
-          await this.generateLocalesJson(texts, selectedLanguage);
+          await this.generateLocalesJson(fileType, texts, selectedLanguage);
         } else {
           // 다른 언어는 DeepL로 번역 후 생성
-          await this.generateLocalesWithDeepL(texts, selectedLanguage);
+          await this.generateLocalesWithDeepL(fileType, texts, selectedLanguage);
         }
       }
     });
@@ -447,7 +454,7 @@ class LocalesGenerationService {
   }
 
   // DeepL로 번역과 함께 locales 파일 생성
-  private async generateLocalesWithDeepL(texts: string[], language: string): Promise<void> {
+  private async generateLocalesWithDeepL(fileType: FileType, texts: string[], language: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('i18nManager.translation');
     const apiKey = config.get<string>('deeplApiKey', '');
 
@@ -494,7 +501,7 @@ class LocalesGenerationService {
           });
 
           // 번역된 텍스트로 locales 파일 생성
-          await this.generateLocalesJsonWithTranslatedTexts(texts, translatedTexts, language);
+          await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language);
 
           // 4단계: 완료
           progress.report({
@@ -509,7 +516,7 @@ class LocalesGenerationService {
   }
 
   // 모든 언어로 locales 파일 생성하는 함수
-  private async generateAllLanguages(texts: string[], languages?: string[]): Promise<void> {
+  private async generateAllLanguages(fileType: FileType, texts: string[], languages?: string[]): Promise<void> {
     // 언어 목록이 제공되지 않으면 설정에서 활성화된 언어들 사용
     if (!languages) {
       const config = vscode.workspace.getConfiguration('i18nManager.locales');
@@ -538,25 +545,25 @@ class LocalesGenerationService {
 
         if (newApiKey) {
           // API 키가 설정되었으면 모든 언어로 생성
-          await this.generateAllLanguagesWithDeepL(texts, languages);
+          await this.generateAllLanguagesWithDeepL(fileType, texts, languages);
         } else {
           // 여전히 API 키가 없으면 한국어만 생성
-          await this.generateLocalesJson(texts, 'ko');
+          await this.generateLocalesJson(fileType, texts, 'ko');
           vscode.window.showInformationMessage('한국어 파일만 생성되었습니다.');
         }
       } else if (result === '한국어만 생성') {
-        await this.generateLocalesJson(texts, 'ko');
+        await this.generateLocalesJson(fileType, texts, 'ko');
         vscode.window.showInformationMessage('한국어 파일이 생성되었습니다.');
       }
       return;
     }
 
     // DeepL로 모든 언어 생성
-    await this.generateAllLanguagesWithDeepL(texts, languages);
+    await this.generateAllLanguagesWithDeepL(fileType, texts, languages);
   }
 
   // DeepL로 모든 언어 생성하는 별도 함수
-  private async generateAllLanguagesWithDeepL(texts: string[], languages: string[]): Promise<void> {
+  private async generateAllLanguagesWithDeepL(fileType: FileType, texts: string[], languages: string[]): Promise<void> {
     let successCount = 0;
     let totalCount = languages.length;
 
@@ -585,7 +592,7 @@ class LocalesGenerationService {
                   message: `${languageName} 파일 생성 중...`,
                   increment: 0,
                 });
-                await this.generateLocalesJson(texts, language, undefined, false);
+                await this.generateLocalesJson(fileType, texts, language, undefined, false);
               } else {
                 // 다른 언어는 DeepL로 번역
                 progress.report({
@@ -616,7 +623,7 @@ class LocalesGenerationService {
                 });
 
                 // 알림 비활성화
-                await this.generateLocalesJsonWithTranslatedTexts(texts, translatedTexts, language, undefined, false);
+                await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language, undefined, false);
               }
               successCount++;
             } catch (error: any) {

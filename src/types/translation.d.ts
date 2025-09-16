@@ -6,7 +6,7 @@ export interface TranslationService {
 }
 
 // 언어 코드 타입
-export type LanguageCode = 'ko' | 'en' | 'ja' | 'zh' | 'es' | 'fr' | 'de' | 'ru';
+export type LanguageCode = 'ko' | 'en' | 'ja' | 'zh';
 
 // 언어 정보
 export interface LanguageInfo {
