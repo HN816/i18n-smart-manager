@@ -243,12 +243,17 @@ class TextConversionService {
 
     const content = document.getText();
 
-    // contextStart를 공백을 만날 때까지로 설정
+    // contextStart를 공백 또는 줄바꿈을 만날 때까지로 설정
     let contextStart = mod.start;
-    while (contextStart > 0 && content[contextStart - 1] !== ' ') {
+    while (contextStart > 0 && !/\s/.test(content[contextStart - 1])) {
       contextStart--;
     }
-    const contextEnd = Math.min(content.length, mod.end + 1);
+
+    // contextEnd를 공백 또는 >를 만날 때까지로 설정
+    let contextEnd = mod.end;
+    while (contextEnd < content.length && content[contextEnd] !== ' ' && content[contextEnd] !== '>') {
+      contextEnd++;
+    }
 
     // replacement를 포함한 전체 컨텍스트 생성 (변경된 후 기준)
     const beforeText = content.substring(contextStart, mod.start);
@@ -279,10 +284,23 @@ class TextConversionService {
 
       if (isWrappedInBraces) {
         // key="{t()}" 패턴이 포함되어 있는지 확인
-        const tsxPropsPattern = /(\w+(?:-\w+)*)="\{(t\([^}]*\))\}"/;
-        const match = fullContext.match(tsxPropsPattern);
+        const tsxPropsPattern1 = /(\w+(?:-\w+)*)="\{(t\([^}]*\))\}"/;
+        const match = fullContext.match(tsxPropsPattern1);
         if (match) {
           const [, propName, tFunction] = match;
+          // 변경된 후 기준으로 key={t()} 형태로 수정하고 범위도 조정
+          return {
+            start: contextStart,
+            end: contextEnd,
+            replacement: `${propName}={${tFunction}}`,
+          };
+        }
+
+        // key={`{t()}`} 패턴이 포함되어 있는지 확인
+        const tsxPropsPattern2 = /(\w+(?:-\w+)*)=\{\`\{(t\([^`]*\))\}\`\}/;
+        const templateMatch = fullContext.match(tsxPropsPattern2);
+        if (templateMatch) {
+          const [, propName, tFunction] = templateMatch;
           // 변경된 후 기준으로 key={t()} 형태로 수정하고 범위도 조정
           return {
             start: contextStart,
