@@ -102,15 +102,18 @@ class SpreadsheetService {
     }
   }
 
-  // JSON 데이터를 스프레드시트 형식으로 변환
+  // JSON 데이터를 스프레드시트 형식으로 변환 (중첩 구조 지원)
   private convertJsonToSheetData(jsonData: any, language: string): any[][] {
     const sheetData: any[][] = [];
 
-    // 헤더 행 추가 (중국어 컬럼 추가)
+    // 헤더 행 추가
     sheetData.push(['Key', 'Korean', 'English', 'Chinese', 'Japanese']);
 
+    // 중첩된 JSON을 평면화하여 처리
+    const flattenedData = this.flattenJson(jsonData);
+
     // 데이터 행 추가
-    Object.entries(jsonData).forEach(([key, value]) => {
+    Object.entries(flattenedData).forEach(([key, value]) => {
       const row = ['', '', '', '', '']; // 기본적으로 빈 값으로 초기화
 
       // 언어에 따라 해당 컬럼에 값 설정
@@ -129,6 +132,27 @@ class SpreadsheetService {
     });
 
     return sheetData;
+  }
+
+  // 중첩된 JSON 객체를 평면화하는 헬퍼 메서드
+  private flattenJson(obj: any, prefix: string = ''): { [key: string]: any } {
+    const flattened: { [key: string]: any } = {};
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const newKey = prefix ? `${prefix}.${key}` : key;
+
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          // 중첩된 객체인 경우 재귀적으로 평면화
+          Object.assign(flattened, this.flattenJson(obj[key], newKey));
+        } else {
+          // 원시 값이거나 배열인 경우 그대로 저장
+          flattened[newKey] = obj[key];
+        }
+      }
+    }
+
+    return flattened;
   }
 
   // 스프레드시트 업데이트 - 무조건 덮어쓰기
@@ -221,7 +245,7 @@ class SpreadsheetService {
     }
   }
 
-  // 여러 언어 파일의 데이터를 합치기 (선택한 파일 기준으로 헤더 생성)
+  // 여러 언어 파일의 데이터를 합치기 (선택한 파일 기준으로 헤더 생성) - 중첩 구조 지원
   private combineMultipleLocales(localesFilePaths: string[]): any[][] {
     const combinedData: any[][] = [];
     const allKeys = new Set<string>();
@@ -239,7 +263,10 @@ class SpreadsheetService {
       try {
         const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
-        Object.entries(jsonData).forEach(([key, value]) => {
+        // 중첩된 JSON을 평면화
+        const flattenedData = this.flattenJson(jsonData);
+
+        Object.entries(flattenedData).forEach(([key, value]) => {
           allKeys.add(key);
 
           if (!languageData[key]) {
