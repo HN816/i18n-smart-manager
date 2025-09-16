@@ -1,75 +1,155 @@
-# i18n-manager README
+# i18n Manager
 
-This is the README for your extension "i18n-manager". After writing up a brief description, we recommend including the following sections.
+한글 텍스트를 자동으로 추출하고 i18n 키로 변환하여 다국어 지원을 쉽게 만들어주는 VSCode 확장프로그램입니다.
 
-## Features
+## ✨ 주요 기능
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### 한글 텍스트 자동 감지
+- **Vue, TypeScript, JavaScript, TSX, JSX** 파일에서 한글 텍스트를 자동으로 감지
+- 이미 i18n이 적용된 텍스트는 제외하여 중복 변환 방지
+- 주석 내 한글 텍스트는 자동으로 제외
 
-For example if there is an image subfolder under your extension project workspace:
+### 스마트 변환
+- 한글 텍스트를 i18n 키로 자동 변환
+- 변수가 포함된 텍스트도 자동으로 처리 (`${변수}`, `{{변수}}`, `{변수}`)
+- 파일 타입에 맞는 올바른 문법으로 변환
 
-\!\[feature X\]\(images/feature-x.png\)
+### Locales 파일 자동 생성
+- 추출된 텍스트로 `locales.{language}.json` 파일 자동 생성
+- 기존 파일과 병합하여 중복 키 방지
+- **DeepL API**를 통한 자동 번역 지원 (영어, 중국어, 일본어)
+- 중첩 구조 지원: 네임스페이스별로 그룹화된 파일 구조
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### Google Sheets 연동
+- 생성된 locales 파일을 Google Sheets에 업로드
+- 번역팀과의 협업을 위한 스프레드시트 관리
+- 여러 언어 파일을 하나의 시트로 통합
+- 자동 평면화: 중첩 구조를 `namespace.key` 형태로 변환하여 업로드
 
-## Requirements
+### 실시간 미리보기
+- 변환 결과를 실시간으로 미리보기
+- 변환 전/후 비교 가능
+- 하이라이트를 통한 시각적 피드백
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## 빠른 시작
 
-## Extension Settings
+### 1. 확장 설치
+VSCode 익스텐션에서 "i18n Manager"를 검색하여 설치하세요.
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+### 2. 모니터링 시작
+1. VSCode 사이드바에서 🌐아이콘 클릭
+2. **모니터링 시작** 버튼을 클릭하여 한글 텍스트 모니터링 시작
 
-For example:
+### 3. 텍스트 변환
+1. 감지된 한글 텍스트를 확인
+2. **전체 변환** 버튼으로 일괄 변환
+3. 또는 개별 텍스트를 선택하여 변환
+4. **네임스페이스 입력**: 변환 시 네임스페이스를 입력하여 키를 그룹화 (예: `common`, `auth`)
 
-This extension contributes the following settings:
+### 4. Locales 파일 생성
+1. **locales 파일 생성** 버튼 클릭
+2. 번역이 필요한 언어 선택
+3. **네임스페이스 입력** (선택사항): 키를 그룹화할 네임스페이스 입력
+4. 자동으로 `locales.ko.json`, `locales.en.json` 등 파일 생성
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## ⚙️ 설정
 
-## Known Issues
+### 기본 설정
+```json
+{
+  "i18nManager.locales.outputPath": "", // locales 파일 저장 경로
+  "i18nManager.locales.enabledLanguages": ["ko", "en", "zh", "ja"] // 활성화할 언어
+}
+```
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+### 키 생성 커스터마이징
+```json
+{
+  "i18nManager.keyGeneration.customFunction": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')"
+}
+```
 
-## Release Notes
+### DeepL 번역 설정
+```json
+{
+  "i18nManager.translation.deeplApiKey": "your-deepl-api-key"
+}
+```
 
-Users appreciate release notes as you update your extension.
+### Google Sheets 연동 설정
+#### - 구글 API 키
+```json
+{
+  "i18nManager.spreadsheet.googleApiKey": "your-google-api-key"
+}
+```
 
-### 1.0.0
+<img width="1132" height="624" alt="Image" src="./images/google-api-key.png" />
 
-Initial release of ...
+#### - Google Service Account 인증 정보
+```json
+{
+  "i18nManager.spreadsheet.serviceAccountCredentials": { your json }
+}
+```
 
-### 1.0.1
+<img height="330" alt="Image" src="./images/service-account-credentials-1.png" /> <img width="600" alt="Image" src="./images/service-account-credentials-2.png" />
 
-Fixed issue #.
+#### - 구글 스프레드시트 ID
 
-### 1.1.0
+```json
+{
+  "i18nManager.spreadsheet.spreadsheetId": "your-spreadsheet-id",
+}
+```
 
-Added features X, Y, and Z.
+<img width="859" height="168" alt="Image" src="./images/spreadsheet-id.png" />
 
----
+## 사용법
 
-## Following extension guidelines
+### 명령어 팔레트
+- `Ctrl+Shift+P` → "i18n Manager" 검색하여 사용 가능한 명령어 확인
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+### 사이드바 사용
+1. **i18n Manager** 패널에서 모든 기능 접근
+2. 감지된 텍스트 목록 확인
+3. 개별 텍스트 제외/포함 설정
+4. i18n 변환 실행
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+### 키보드 단축키
+- `Ctrl+Shift+A`: 선택한 텍스트를 i18n 목록에 추가
 
-## Working with Markdown
+## 다국어 지원
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+### 자동 번역
+- **DeepL API**를 통한 고품질 번역
+- 지원 언어: 영어, 중국어, 일본어
+- API 키 설정 후 자동으로 번역 파일 생성
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+### Google Sheets 연동
+- 번역팀과의 협업을 위한 스프레드시트 업로드
+- 여러 언어를 하나의 시트로 통합 관리
+- 실시간 협업 및 번역 상태 추적
 
-## For more information
+## 커스터마이징
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+### 키 생성 규칙 설정
+프로젝트에 맞는 i18n 키 생성 규칙을 직접 정의할 수 있습니다:
 
-**Enjoy!**
+```javascript
+// 기본 변환 규칙:
+// - 공백 → 언더스코어: 명시적 띄어쓰기 표현
+// - 점(.) → #dot#: 네임스페이스 구분자(.)와 충돌 방지
+text => text.replace(/\s+/g, '_').replace(/\./g, '#dot#')
+```
 
+### 네임스페이스 활용
+대규모 프로젝트에서 i18n 키를 체계적으로 관리할 수 있습니다:
+- 기능별, 페이지별로 키를 그룹화
+- `namespace.key` 형태로 자동 생성
+- 중복 키 충돌 방지
 
-따옴표 포함 여부에 따라 변수화 여부(ts,js 제외)
-로케일 키 생성은 따옴표 제거함
+### 선택적 변환 관리
+변환할 텍스트를 세밀하게 제어할 수 있습니다:
+- 개별 텍스트 제외/포함 설정
+- 컨텍스트 메뉴로 간편한 관리
