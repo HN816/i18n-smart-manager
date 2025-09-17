@@ -103,7 +103,7 @@ export class I18nTreeDataProvider implements vscode.TreeDataProvider<I18nItem> {
     this.refresh();
 
     // 컨텍스트 키 설정
-    vscode.commands.executeCommand('setContext', 'i18nManager.isActive', active);
+    vscode.commands.executeCommand('setContext', 'I18nSmartManager.isActive', active);
   }
 
   getActive(): boolean {

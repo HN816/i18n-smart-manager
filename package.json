@@ -120,49 +120,49 @@
       "view/title": [
         {
           "command": "i18n-smart-manager.refresh",
-          "when": "view == i18nManager",
+          "when": "view == I18nSmartManager",
           "group": "navigation@1"
         },
         {
           "command": "i18n-smart-manager.start",
-          "when": "view == i18nManager && !i18nManager.isActive",
+          "when": "view == I18nSmartManager && !I18nSmartManager.isActive",
           "group": "navigation@2"
         },
         {
           "command": "i18n-smart-manager.stop",
-          "when": "view == i18nManager && i18nManager.isActive",
+          "when": "view == I18nSmartManager && I18nSmartManager.isActive",
           "group": "navigation@3"
         },
         {
           "command": "i18n-smart-manager.generateLocales",
-          "when": "view == i18nManager && i18nManager.isActive",
+          "when": "view == I18nSmartManager && I18nSmartManager.isActive",
           "group": "navigation@4"
         },
         {
           "command": "i18n-smart-manager.convertAll",
-          "when": "view == i18nManager && i18nManager.isActive",
+          "when": "view == I18nSmartManager && I18nSmartManager.isActive",
           "group": "navigation@5"
         },
         {
           "command": "i18n-smart-manager.uploadToSpreadsheet",
-          "when": "view == i18nManager && !i18nManager.isActive",
+          "when": "view == I18nSmartManager && !I18nSmartManager.isActive",
           "group": "navigation@6"
         }
       ],
       "view/item/context": [
         {
           "command": "i18n-smart-manager.exclude",
-          "when": "view == i18nManager && viewItem == korean-text",
+          "when": "view == I18nSmartManager && viewItem == korean-text",
           "group": "inline"
         },
         {
           "command": "i18n-smart-manager.include",
-          "when": "view == i18nManager && viewItem == excluded-text",
+          "when": "view == I18nSmartManager && viewItem == excluded-text",
           "group": "inline"
         },
         {
           "command": "i18n-smart-manager.goToText",
-          "when": "view == i18nManager && (viewItem == korean-text || viewItem == i18n-text)",
+          "when": "view == I18nSmartManager && (viewItem == korean-text || viewItem == i18n-text)",
           "group": "inline"
         }
       ],
@@ -186,7 +186,7 @@
     "views": {
       "i18n-smart-manager": [
         {
-          "id": "i18nManager",
+          "id": "I18nSmartManager",
           "name": "I18n Smart Manager"
         }
       ]
@@ -194,37 +194,37 @@
     "configuration": {
       "title": "I18n Smart Manager",
       "properties": {
-        "i18nManager.keyGeneration.customFunction": {
+        "I18nSmartManager.keyGeneration.customFunction": {
           "type": "string",
           "default": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')",
           "description": "키 생성 커스텀 함수 (JavaScript 코드). 'text' 매개변수를 받아 변환된 키를 반환해야 합니다."
         },
-        "i18nManager.translation.deeplApiKey": {
+        "I18nSmartManager.translation.deeplApiKey": {
           "type": "string",
           "default": "",
           "description": "DeepL API 키"
         },
-        "i18nManager.locales.outputPath": {
+        "I18nSmartManager.locales.outputPath": {
           "type": "string",
           "default": "",
           "description": "locales 파일 저장 경로 (비어있으면 프로젝트 루트에 저장)"
         },
-        "i18nManager.spreadsheet.googleApiKey": {
+        "I18nSmartManager.spreadsheet.googleApiKey": {
           "type": "string",
           "default": "",
           "description": "구글 API 키 (스프레드시트 접근용)"
         },
-        "i18nManager.spreadsheet.serviceAccountCredentials": {
+        "I18nSmartManager.spreadsheet.serviceAccountCredentials": {
           "type": "object",
           "default": null,
           "description": "Google Service Account 인증 정보 (JSON 형태)"
         },
-        "i18nManager.spreadsheet.spreadsheetId": {
+        "I18nSmartManager.spreadsheet.spreadsheetId": {
           "type": "string",
           "default": "",
           "description": "구글 스프레드시트 ID"
         },
-        "i18nManager.locales.enabledLanguages": {
+        "I18nSmartManager.locales.enabledLanguages": {
           "type": "array",
           "items": {
             "type": "string",

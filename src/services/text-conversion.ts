@@ -42,7 +42,11 @@ class TextConversionService {
   }
 
   // 변수 포함 텍스트를 i18n 형태로 변환
-  private convertTextWithVariables(fileType: FileType, text: string, range: { start: number; end: number; text: string }): string {
+  private convertTextWithVariables(
+    fileType: FileType,
+    text: string,
+    range: { start: number; end: number; text: string },
+  ): string {
     const variableInfo = this.extractVariables(fileType, text);
     let i18nFunction: string;
 
@@ -166,7 +170,11 @@ class TextConversionService {
   }
 
   // 미리보기 로직을 내부적으로 실행하는 헬퍼 함수 (화면에 표시하지 않음)
-  private calculateModifications(fileType: FileType, texts: string[], ranges: { start: number; end: number; text: string }[]): void {
+  private calculateModifications(
+    fileType: FileType,
+    texts: string[],
+    ranges: { start: number; end: number; text: string }[],
+  ): void {
     this.processConversions(fileType, texts, ranges, false);
   }
 
@@ -365,7 +373,7 @@ class TextConversionService {
 
   // 텍스트를 i18n 키로 변환하는 함수 (커스텀 함수 사용)
   convertToI18nKey(text: string): string {
-    const config = vscode.workspace.getConfiguration('i18nManager.keyGeneration');
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.keyGeneration');
     const customFunction = config.get<string>(
       'customFunction',
       "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')",

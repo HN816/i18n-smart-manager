@@ -325,7 +325,7 @@ class SpreadsheetService {
 export async function uploadLocalesToSpreadsheet(): Promise<void> {
   try {
     // Service Account 인증 정보 확인
-    const config = vscode.workspace.getConfiguration('i18nManager.spreadsheet');
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.spreadsheet');
     const credentials = config.get<ServiceAccountCredentials | null>('serviceAccountCredentials', null);
     const spreadsheetId = config.get<string>('spreadsheetId', '');
 
@@ -337,7 +337,7 @@ export async function uploadLocalesToSpreadsheet(): Promise<void> {
       );
 
       if (result === '설정 열기') {
-        await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.spreadsheet');
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'I18nSmartManager.spreadsheet');
       }
       return;
     }
@@ -350,7 +350,7 @@ export async function uploadLocalesToSpreadsheet(): Promise<void> {
       );
 
       if (result === '설정 열기') {
-        await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.spreadsheet');
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'I18nSmartManager.spreadsheet');
       }
       return;
     }

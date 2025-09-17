@@ -7,7 +7,7 @@ import { registerAllCommands } from './commands';
 export function activate(context: vscode.ExtensionContext) {
   const treeDataProvider = new I18nTreeDataProvider(() => stateManager.updateHighlights());
   stateManager.setTreeDataProvider(treeDataProvider);
-  vscode.window.createTreeView('i18nManager', { treeDataProvider });
+  vscode.window.createTreeView('I18nSmartManager', { treeDataProvider });
 
   registerAllCommands(context);
 }

@@ -124,7 +124,7 @@ class LocalesGenerationService {
     // 출력 경로가 지정되지 않은 경우 기본 경로 사용
     let targetPath = outputPath;
     if (!targetPath) {
-      const config = vscode.workspace.getConfiguration('i18nManager.locales');
+      const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
       const customPath = config.get<string>('outputPath', '');
 
       if (customPath) {
@@ -166,7 +166,6 @@ class LocalesGenerationService {
         let i18nValue = removeQuotes(text);
         let index = 0;
 
-
         if (fileType === 'vue') {
           i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
         } else if (fileType === 'tsx') {
@@ -174,7 +173,6 @@ class LocalesGenerationService {
         }
         // ${} 형태 변수를 {숫자} 형태로 변환
         i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
-
 
         value = i18nValue;
       }
@@ -278,7 +276,7 @@ class LocalesGenerationService {
     // 출력 경로가 지정되지 않은 경우 기본 경로 사용
     let targetPath = outputPath;
     if (!targetPath) {
-      const config = vscode.workspace.getConfiguration('i18nManager.locales');
+      const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
       const customPath = config.get<string>('outputPath', '');
 
       if (customPath) {
@@ -324,7 +322,6 @@ class LocalesGenerationService {
         let i18nValue = translatedText;
         let index = 0;
 
-
         if (fileType === 'vue') {
           i18nValue = i18nValue.replace(/\{\{\s*([^}]+)\s*\}\}/g, () => `{${index++}}`);
         } else if (fileType === 'tsx') {
@@ -332,7 +329,6 @@ class LocalesGenerationService {
         }
         // ${} 형태 변수를 {숫자} 형태로 변환
         i18nValue = i18nValue.replace(/\$\{\s*([^}]+)\s*\}/g, () => `{${index++}}`);
-
 
         value = i18nValue;
       }
@@ -444,7 +440,7 @@ class LocalesGenerationService {
     ];
 
     // 설정에서 활성화된 언어들 가져오기
-    const config = vscode.workspace.getConfiguration('i18nManager.locales');
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
     const enabledLanguages = config.get<string[]>('enabledLanguages', ['ko', 'en', 'ja']);
 
     // 활성화된 언어들만 필터링
@@ -456,24 +452,24 @@ class LocalesGenerationService {
       // 활성화된 언어들
       ...activeLanguages.map(
         (lang) =>
-        ({
-          label: `${lang.flag} ${lang.name} (${lang.code})`,
-          description: `${lang.description}으로 locales.${lang.code}.json 생성`,
-          detail: lang.code === 'ko' ? '한국어 텍스트를 그대로 사용' : 'DeepL API를 사용하여 번역',
-          language: lang.code,
-        } as any),
+          ({
+            label: `${lang.flag} ${lang.name} (${lang.code})`,
+            description: `${lang.description}으로 locales.${lang.code}.json 생성`,
+            detail: lang.code === 'ko' ? '한국어 텍스트를 그대로 사용' : 'DeepL API를 사용하여 번역',
+            language: lang.code,
+          } as any),
       ),
 
       // 전체 언어 옵션 (활성화된 언어가 2개 이상일 때만 표시)
       ...(activeLanguages.length > 1
         ? [
-          {
-            label: '🌍 전체 언어',
-            description: `모든 활성화된 언어로 locales 파일들을 한번에 생성`,
-            detail: `${activeLanguages.map((l) => l.name).join(', ')} 파일을 모두 생성합니다`,
-            language: 'all',
-          } as any,
-        ]
+            {
+              label: '🌍 전체 언어',
+              description: `모든 활성화된 언어로 locales 파일들을 한번에 생성`,
+              detail: `${activeLanguages.map((l) => l.name).join(', ')} 파일을 모두 생성합니다`,
+              language: 'all',
+            } as any,
+          ]
         : []),
 
       // 설정 옵션
@@ -496,7 +492,10 @@ class LocalesGenerationService {
 
         if (selectedLanguage === 'settings') {
           // 설정 페이지 열기
-          await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.locales.enabledLanguages');
+          await vscode.commands.executeCommand(
+            'workbench.action.openSettings',
+            'I18nSmartManager.locales.enabledLanguages',
+          );
           return;
         }
 
@@ -530,8 +529,13 @@ class LocalesGenerationService {
   }
 
   // DeepL로 번역과 함께 locales 파일 생성
-  private async generateLocalesWithDeepL(fileType: FileType, texts: string[], language: string, namespace?: string): Promise<void> {
-    const config = vscode.workspace.getConfiguration('i18nManager.translation');
+  private async generateLocalesWithDeepL(
+    fileType: FileType,
+    texts: string[],
+    language: string,
+    namespace?: string,
+  ): Promise<void> {
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.translation');
     const apiKey = config.get<string>('deeplApiKey', '');
 
     if (!apiKey) {
@@ -542,7 +546,7 @@ class LocalesGenerationService {
       );
 
       if (result === '설정 열기') {
-        await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.translation');
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'I18nSmartManager.translation');
       }
       return;
     }
@@ -577,7 +581,15 @@ class LocalesGenerationService {
           });
 
           // 번역된 텍스트로 locales 파일 생성
-          await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language, undefined, true, namespace);
+          await this.generateLocalesJsonWithTranslatedTexts(
+            fileType,
+            texts,
+            translatedTexts,
+            language,
+            undefined,
+            true,
+            namespace,
+          );
 
           // 4단계: 완료
           progress.report({
@@ -592,14 +604,19 @@ class LocalesGenerationService {
   }
 
   // 모든 언어로 locales 파일 생성하는 함수
-  private async generateAllLanguages(fileType: FileType, texts: string[], languages?: string[], namespace?: string): Promise<void> {
+  private async generateAllLanguages(
+    fileType: FileType,
+    texts: string[],
+    languages?: string[],
+    namespace?: string,
+  ): Promise<void> {
     // 언어 목록이 제공되지 않으면 설정에서 활성화된 언어들 사용
     if (!languages) {
-      const config = vscode.workspace.getConfiguration('i18nManager.locales');
+      const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
       languages = config.get<string[]>('enabledLanguages', ['ko', 'en', 'ja']);
     }
 
-    const config = vscode.workspace.getConfiguration('i18nManager.translation');
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.translation');
     const deeplKey = config.get<string>('deeplApiKey', '');
 
     // 번역이 필요한 언어가 있는지 확인
@@ -614,9 +631,9 @@ class LocalesGenerationService {
       );
 
       if (result === '설정 열기') {
-        await vscode.commands.executeCommand('workbench.action.openSettings', 'i18nManager.translation');
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'I18nSmartManager.translation');
         // 설정 후 다시 확인
-        const newConfig = vscode.workspace.getConfiguration('i18nManager.translation');
+        const newConfig = vscode.workspace.getConfiguration('I18nSmartManager.translation');
         const newApiKey = newConfig.get<string>('deeplApiKey', '');
 
         if (newApiKey) {
@@ -639,7 +656,12 @@ class LocalesGenerationService {
   }
 
   // DeepL로 모든 언어 생성하는 별도 함수
-  private async generateAllLanguagesWithDeepL(fileType: FileType, texts: string[], languages: string[], namespace?: string): Promise<void> {
+  private async generateAllLanguagesWithDeepL(
+    fileType: FileType,
+    texts: string[],
+    languages: string[],
+    namespace?: string,
+  ): Promise<void> {
     let successCount = 0;
     let totalCount = languages.length;
 
@@ -676,7 +698,7 @@ class LocalesGenerationService {
                   increment: 0,
                 });
 
-                const config = vscode.workspace.getConfiguration('i18nManager.translation');
+                const config = vscode.workspace.getConfiguration('I18nSmartManager.translation');
                 const apiKey = config.get<string>('deeplApiKey', '');
 
                 // 번역 진행 상황을 더 자세히 표시
@@ -699,7 +721,15 @@ class LocalesGenerationService {
                 });
 
                 // 알림 비활성화
-                await this.generateLocalesJsonWithTranslatedTexts(fileType, texts, translatedTexts, language, undefined, false, namespace);
+                await this.generateLocalesJsonWithTranslatedTexts(
+                  fileType,
+                  texts,
+                  translatedTexts,
+                  language,
+                  undefined,
+                  false,
+                  namespace,
+                );
               }
               successCount++;
             } catch (error: any) {
