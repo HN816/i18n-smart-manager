@@ -242,6 +242,40 @@
             "ja"
           ],
           "description": "활성화할 언어들 (한국어, 영어, 중국어, 일본어 중 선택)"
+        },
+        "I18nSmartManager.highlighting.koreanTextColor": {
+          "type": "string",
+          "default": "#ffe44c",
+          "description": "Korean text highlight color"
+        },
+        "I18nSmartManager.highlighting.i18nTextColor": {
+          "type": "string",
+          "default": "#90EE90",
+          "description": "i18n text highlight color"
+        },
+        "I18nSmartManager.highlighting.koreanTextDecoration": {
+          "type": "string",
+          "default": "underline wavy",
+          "enum": [
+            "underline",
+            "underline wavy",
+            "underline dotted",
+            "underline dashed",
+            "none"
+          ],
+          "description": "Korean text decoration style"
+        },
+        "I18nSmartManager.highlighting.i18nTextDecoration": {
+          "type": "string",
+          "default": "underline",
+          "enum": [
+            "underline",
+            "underline wavy",
+            "underline dotted",
+            "underline dashed",
+            "none"
+          ],
+          "description": "i18n text decoration style"
         }
       }
     }

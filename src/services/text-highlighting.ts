@@ -4,9 +4,22 @@ import { TextRange } from '../types';
 class TextHighlightingService {
   private currentDecorations: vscode.TextEditorDecorationType[] = [];
 
+  // 설정에서 색상과 스타일 가져오기
+  private getHighlightingConfig() {
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.highlighting');
+
+    return {
+      koreanTextColor: config.get<string>('koreanTextColor', '#ffe44c'),
+      i18nTextColor: config.get<string>('i18nTextColor', '#90EE90'),
+      koreanTextDecoration: config.get<string>('koreanTextDecoration', 'underline wavy'),
+      i18nTextDecoration: config.get<string>('i18nTextDecoration', 'underline'),
+    };
+  }
+
   // 텍스트 하이라이트
   highlightText(editor: vscode.TextEditor, koreanRanges: TextRange[], i18nRanges: TextRange[]): void {
     const document = editor.document;
+    const config = this.getHighlightingConfig();
 
     // 기존 하이라이트 제거
     this.clearDecorations(editor);
@@ -22,8 +35,8 @@ class TextHighlightingService {
     });
 
     const koreanDecorationType = vscode.window.createTextEditorDecorationType({
-      textDecoration: 'underline wavy',
-      color: '#ffe44cff',
+      textDecoration: config.koreanTextDecoration as any,
+      color: config.koreanTextColor,
     });
 
     // i18n 텍스트 하이라이트
@@ -37,8 +50,8 @@ class TextHighlightingService {
     });
 
     const i18nDecorationType = vscode.window.createTextEditorDecorationType({
-      textDecoration: 'underline',
-      color: '#90EE90ff',
+      textDecoration: config.i18nTextDecoration as any,
+      color: config.i18nTextColor,
     });
 
     editor.setDecorations(koreanDecorationType, koreanDecorations);

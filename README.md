@@ -185,3 +185,28 @@ VSCode 익스텐션에서 "I18n Smart Manager"를 검색하여 설치하세요.
 
 - 개별 텍스트 제외/포함 설정
 - 컨텍스트 메뉴로 간편한 관리
+
+### 하이라이트 커스터마이징
+
+```json
+{
+  "I18nSmartManager.highlighting.koreanTextColor": "#ffe44c", // 한글 텍스트 색상
+  "I18nSmartManager.highlighting.i18nTextColor": "#90EE90", // i18n 텍스트 색상
+  "I18nSmartManager.highlighting.koreanTextDecoration": "underline wavy", // 한글 텍스트 스타일
+  "I18nSmartManager.highlighting.i18nTextDecoration": "underline" // i18n 텍스트 스타일
+}
+```
+
+#### 지원하는 스타일
+
+- `underline` - 기본 밑줄
+- `underline wavy` - 물결 밑줄
+- `underline dotted` - 점선 밑줄
+- `underline dashed` - 대시 밑줄
+- `none` - 밑줄 없음
+
+#### 색상 형식
+
+- Hex 형식: `#ffe44c`, `#90EE90`
+- RGB 형식: `rgb(255, 228, 76)`
+- 색상 이름: `yellow`, `lightgreen`
