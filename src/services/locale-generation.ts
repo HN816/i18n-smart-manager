@@ -105,7 +105,56 @@ class LocalesGenerationService {
     return languageMap[languageCode] || languageCode.toUpperCase();
   }
 
-  // 공통 로케일 생성 로직을 처리하는 헬퍼 메서드
+  // 번역이 필요한 텍스트만 필터링하는 헬퍼 메서드
+  private async filterTextsForTranslation(
+    fileType: FileType,
+    originalTexts: string[],
+    existingKeys: Set<string>,
+    namespace?: string,
+  ): Promise<{
+    textsToTranslate: string[];
+    skippedTexts: string[];
+    skippedKeys: string[];
+  }> {
+    const textsToTranslate: string[] = [];
+    const skippedTexts: string[] = [];
+    const skippedKeys: string[] = [];
+
+    for (const originalText of originalTexts) {
+      const variableInfo = extractVariables(fileType, originalText);
+      let key: string;
+
+      if (variableInfo.variables.length === 0) {
+        // 변수가 없는 경우
+        key = convertToI18nKey(originalText);
+      } else {
+        // 변수가 있는 경우 - 키는 템플릿 기반
+        key = convertToI18nKey(variableInfo.template);
+      }
+
+      // 2개 이상의 연속된 백슬래시를 1개로 줄이기
+      key = key.replace(/\\{2,}/g, '\\');
+
+      // 네임스페이스가 있으면 키에 추가
+      const fullKey = namespace ? `${namespace}.${key}` : key;
+
+      // 이미 존재하는 키인지 확인
+      if (existingKeys.has(fullKey)) {
+        skippedTexts.push(originalText);
+        skippedKeys.push(fullKey);
+      } else {
+        textsToTranslate.push(originalText);
+      }
+    }
+
+    return {
+      textsToTranslate,
+      skippedTexts,
+      skippedKeys,
+    };
+  }
+
+  // 공통 로케일 생성 로직을 처리하는 헬퍼 메서드 (번역 중복 방지 개선)
   private async processLocaleGeneration(
     fileType: FileType,
     originalTexts: string[],
@@ -129,11 +178,51 @@ class LocalesGenerationService {
     const existingLocales = await this.readExistingLocales(targetPath);
     const existingKeys = new Set(Object.keys(existingLocales));
 
-    // 텍스트를 i18n 키와 값으로 변환
-    const { localeEntries, newKeys, skippedKeys } = await this.processTextsToLocaleEntries(
+    // 번역이 필요한 텍스트만 필터링 (번역 통신 중복 방지)
+    const { textsToTranslate, skippedTexts, skippedKeys } = await this.filterTextsForTranslation(
       fileType,
       originalTexts,
-      translatedTexts,
+      existingKeys,
+      namespace,
+    );
+
+    // 번역이 필요한 텍스트가 없으면 알림 후 종료
+    if (textsToTranslate.length === 0) {
+      if (showNotifications) {
+        const message =
+          skippedTexts.length > 0
+            ? `모든 텍스트가 이미 번역되어 있습니다. (${skippedTexts.length}개 건너뛰기)`
+            : '번역할 텍스트가 없습니다.';
+        vscode.window.showInformationMessage(message);
+      }
+      return;
+    }
+
+    // 번역된 텍스트가 제공된 경우, 필터링된 텍스트에 맞게 조정
+    let adjustedTranslatedTexts: string[] | null = null;
+    if (translatedTexts) {
+      // 원본 텍스트와 번역된 텍스트의 인덱스 매핑
+      const textIndexMap = new Map<string, number>();
+      originalTexts.forEach((text, index) => {
+        textIndexMap.set(text, index);
+      });
+
+      // 번역이 필요한 텍스트에 해당하는 번역된 텍스트만 추출
+      adjustedTranslatedTexts = textsToTranslate.map((text) => {
+        const originalIndex = textIndexMap.get(text);
+        return originalIndex !== undefined ? translatedTexts[originalIndex] : text;
+      });
+    }
+
+    // 텍스트를 i18n 키와 값으로 변환 (필터링된 텍스트만 처리)
+    const {
+      localeEntries,
+      newKeys,
+      skippedKeys: newSkippedKeys,
+    } = await this.processTextsToLocaleEntries(
+      fileType,
+      textsToTranslate,
+      adjustedTranslatedTexts,
       existingKeys,
       namespace,
     );
@@ -146,7 +235,7 @@ class LocalesGenerationService {
       language,
       namespace,
       newKeys,
-      skippedKeys,
+      [...skippedKeys, ...newSkippedKeys], // 기존 건너뛴 키들과 새로 건너뛴 키들 합치기
       showNotifications,
     );
   }
@@ -286,7 +375,7 @@ class LocalesGenerationService {
     }
   }
 
-  // 성공 알림을 표시하는 헬퍼 메서드
+  // 성공 알림을 표시하는 헬퍼 메서드 (개선된 버전)
   private async showSuccessNotification(
     targetPath: string,
     language: string,
@@ -302,7 +391,7 @@ class LocalesGenerationService {
     let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}${namespaceText}\n`;
     message += `새로 추가된 항목: ${newKeys.length}개\n`;
     if (skippedKeys.length > 0) {
-      message += `중복 키로 인해 건너뛴 항목: ${skippedKeys.length}개`;
+      message += `이미 존재하여 건너뛴 항목: ${skippedKeys.length}개`;
     }
 
     vscode.window.showInformationMessage(message);
@@ -310,7 +399,7 @@ class LocalesGenerationService {
     // 건너뛴 키가 있으면 상세 정보 표시
     if (skippedKeys.length > 0) {
       const showDetails = await vscode.window.showInformationMessage(
-        `${skippedKeys.length}개의 중복 키가 건너뛰어졌습니다. 상세 정보를 보시겠습니까?`,
+        `${skippedKeys.length}개의 키가 이미 존재하여 건너뛰어졌습니다. 상세 정보를 보시겠습니까?`,
         '상세 보기',
         '닫기',
       );
@@ -318,7 +407,7 @@ class LocalesGenerationService {
       if (showDetails === '상세 보기') {
         const skippedKeysText = skippedKeys.join('\n');
         const doc = await vscode.workspace.openTextDocument({
-          content: `건너뛴 키 목록:\n\n${skippedKeysText}`,
+          content: `건너뛴 키 목록 (이미 번역되어 있음):\n\n${skippedKeysText}`,
           language: 'plaintext',
         });
         await vscode.window.showTextDocument(doc);
@@ -487,7 +576,7 @@ class LocalesGenerationService {
     quickPick.show();
   }
 
-  // DeepL로 번역과 함께 locales 파일 생성
+  // DeepL로 번역과 함께 locales 파일 생성 (중복 번역 방지 개선)
   private async generateLocalesWithDeepL(
     fileType: FileType,
     texts: string[],
@@ -511,6 +600,31 @@ class LocalesGenerationService {
     }
 
     try {
+      // 출력 경로 설정
+      const targetPath = await this.resolveOutputPath(undefined, language);
+
+      // 기존 파일 읽기
+      const existingLocales = await this.readExistingLocales(targetPath);
+      const existingKeys = new Set(Object.keys(existingLocales));
+
+      // 번역이 필요한 텍스트만 필터링
+      const { textsToTranslate, skippedTexts, skippedKeys } = await this.filterTextsForTranslation(
+        fileType,
+        texts,
+        existingKeys,
+        namespace,
+      );
+
+      // 번역이 필요한 텍스트가 없으면 알림 후 종료
+      if (textsToTranslate.length === 0) {
+        const message =
+          skippedTexts.length > 0
+            ? `모든 텍스트가 이미 번역되어 있습니다. (${skippedTexts.length}개 건너뛰기)`
+            : '번역할 텍스트가 없습니다.';
+        vscode.window.showInformationMessage(message);
+        return;
+      }
+
       // 진행 상황 표시
       await vscode.window.withProgress(
         {
@@ -521,17 +635,17 @@ class LocalesGenerationService {
         async (progress) => {
           // 1단계: 번역 준비
           progress.report({
-            message: '번역 준비 중...',
+            message: `번역 준비 중... (${textsToTranslate.length}개 텍스트, ${skippedTexts.length}개 건너뛰기)`,
             increment: 10,
           });
 
-          // 2단계: DeepL API 호출
+          // 2단계: DeepL API 호출 (필터링된 텍스트만)
           progress.report({
-            message: `DeepL API로 ${texts.length}개 텍스트 번역 중...`,
+            message: `DeepL API로 ${textsToTranslate.length}개 텍스트 번역 중...`,
             increment: 20,
           });
 
-          const translatedTexts = await translateTexts(texts, language, 'deepl', apiKey);
+          const translatedTexts = await translateTexts(textsToTranslate, language, 'deepl', apiKey);
 
           // 3단계: 번역 완료
           progress.report({
@@ -542,7 +656,7 @@ class LocalesGenerationService {
           // 번역된 텍스트로 locales 파일 생성
           await this.generateLocalesJsonWithTranslatedTexts(
             fileType,
-            texts,
+            textsToTranslate,
             translatedTexts,
             language,
             undefined,
@@ -597,7 +711,7 @@ class LocalesGenerationService {
 
         if (newApiKey) {
           // API 키가 설정되었으면 모든 언어로 생성
-          await this.generateAllLanguagesWithDeepL(fileType, texts, languages, namespace);
+          await this.generateAllLanguages(fileType, texts, languages, namespace);
         } else {
           // 여전히 API 키가 없으면 한국어만 생성
           await this.generateLocalesJson(fileType, texts, 'ko', undefined, true, namespace);
@@ -614,7 +728,7 @@ class LocalesGenerationService {
     await this.generateAllLanguagesWithDeepL(fileType, texts, languages, namespace);
   }
 
-  // DeepL로 모든 언어 생성하는 별도 함수
+  // DeepL로 모든 언어 생성하는 별도 함수 (건너뛴 키 상세 정보 추가)
   private async generateAllLanguagesWithDeepL(
     fileType: FileType,
     texts: string[],
@@ -623,6 +737,9 @@ class LocalesGenerationService {
   ): Promise<void> {
     let successCount = 0;
     let totalCount = languages.length;
+    let totalSkippedTexts = 0;
+    let totalTranslatedTexts = 0;
+    const allSkippedKeys: { [language: string]: string[] } = {}; // 언어별 건너뛴 키들
 
     try {
       await vscode.window.withProgress(
@@ -650,19 +767,50 @@ class LocalesGenerationService {
                   increment: 0,
                 });
                 await this.generateLocalesJson(fileType, texts, language, undefined, false, namespace);
+                totalTranslatedTexts += texts.length;
               } else {
-                // 다른 언어는 DeepL로 번역
+                // 다른 언어는 중복 체크 후 DeepL로 번역
+                const targetPath = await this.resolveOutputPath(undefined, language);
+
+                // 기존 파일 읽기
+                const existingLocales = await this.readExistingLocales(targetPath);
+                const existingKeys = new Set(Object.keys(existingLocales));
+
+                // 번역이 필요한 텍스트만 필터링
+                const { textsToTranslate, skippedTexts, skippedKeys } = await this.filterTextsForTranslation(
+                  fileType,
+                  texts,
+                  existingKeys,
+                  namespace,
+                );
+
+                // 건너뛴 키들 저장
+                if (skippedKeys.length > 0) {
+                  allSkippedKeys[languageName] = skippedKeys;
+                }
+
+                // 번역이 필요한 텍스트가 없으면 건너뛰기
+                if (textsToTranslate.length === 0) {
+                  progress.report({
+                    message: `${languageName} - 모든 텍스트가 이미 번역됨 (${skippedTexts.length}개 건너뛰기)`,
+                    increment: 0,
+                  });
+                  totalSkippedTexts += skippedTexts.length;
+                  successCount++;
+                  continue;
+                }
+
                 progress.report({
-                  message: `${languageName} 번역 중...`,
+                  message: `${languageName} 번역 중... (${textsToTranslate.length}개 텍스트, ${skippedTexts.length}개 건너뛰기)`,
                   increment: 0,
                 });
 
                 const config = vscode.workspace.getConfiguration('I18nSmartManager.translation');
                 const apiKey = config.get<string>('deeplApiKey', '');
 
-                // 번역 진행 상황을 더 자세히 표시
+                // 번역 진행 상황을 더 자세히 표시 (필터링된 텍스트만)
                 const translatedTexts = await this.translateTextsWithProgress(
-                  texts,
+                  textsToTranslate,
                   language,
                   'deepl',
                   apiKey,
@@ -682,13 +830,16 @@ class LocalesGenerationService {
                 // 알림 비활성화
                 await this.generateLocalesJsonWithTranslatedTexts(
                   fileType,
-                  texts,
+                  textsToTranslate, // 필터링된 텍스트만 사용
                   translatedTexts,
                   language,
                   undefined,
                   false,
                   namespace,
                 );
+
+                totalTranslatedTexts += textsToTranslate.length;
+                totalSkippedTexts += skippedTexts.length;
               }
               successCount++;
             } catch (error: any) {
@@ -702,9 +853,42 @@ class LocalesGenerationService {
         },
       );
 
+      // 완료 후 상세 알림 표시
       if (successCount === totalCount) {
         const languageNames = languages.map((lang) => this.getLanguageName(lang)).join(', ');
-        vscode.window.showInformationMessage(`모든 언어로 locales 파일이 성공적으로 생성되었습니다: ${languageNames}`);
+        let message = `모든 언어로 locales 파일이 성공적으로 생성되었습니다: ${languageNames}\n`;
+        message += `총 번역된 텍스트: ${totalTranslatedTexts}개\n`;
+
+        if (totalSkippedTexts > 0) {
+          message += `이미 번역되어 건너뛴 텍스트: ${totalSkippedTexts}개`;
+        }
+
+        vscode.window.showInformationMessage(message);
+
+        // 건너뛴 키가 있으면 상세 정보 표시
+        if (Object.keys(allSkippedKeys).length > 0) {
+          const showDetails = await vscode.window.showInformationMessage(
+            `${totalSkippedTexts}개의 키가 이미 번역되어 건너뛰어졌습니다. 상세 정보를 보시겠습니까?`,
+            '상세 보기',
+            '닫기',
+          );
+
+          if (showDetails === '상세 보기') {
+            let skippedKeysText = '건너뛴 키 목록 (이미 번역되어 있음):\n\n';
+
+            for (const [languageName, keys] of Object.entries(allSkippedKeys)) {
+              skippedKeysText += `[${languageName}]\n`;
+              skippedKeysText += keys.join('\n');
+              skippedKeysText += '\n\n';
+            }
+
+            const doc = await vscode.workspace.openTextDocument({
+              content: skippedKeysText.trim(),
+              language: 'plaintext',
+            });
+            await vscode.window.showTextDocument(doc);
+          }
+        }
       } else {
         vscode.window.showWarningMessage(`일부 언어 파일 생성에 실패했습니다. (${successCount}/${totalCount})`);
       }
