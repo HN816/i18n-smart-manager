@@ -196,7 +196,7 @@
       "properties": {
         "I18nSmartManager.keyGeneration.customFunction": {
           "type": "string",
-          "default": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')",
+          "default": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#').replace(/\\\\(.)/g, '\\\\\\\\$1').replace(/\\[/g, '#lb#').replace(/\\]/g, '#rb#')",
           "description": "키 생성 커스텀 함수 (JavaScript 코드). 'text' 매개변수를 받아 변환된 키를 반환해야 합니다."
         },
         "I18nSmartManager.translation.deeplApiKey": {

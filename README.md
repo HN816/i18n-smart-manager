@@ -76,7 +76,7 @@ VSCode 익스텐션에서 "I18n Smart Manager"를 검색하여 설치하세요.
 
 ```json
 {
-  "I18nSmartManager.keyGeneration.customFunction": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#')"
+  "I18nSmartManager.keyGeneration.customFunction": "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#').replace(/\\\\(.)/g, '\\\\\\\\$1').replace(/\\[/g, '#lb#').replace(/\\]/g, '#rb#')"
 }
 ```
 
@@ -168,7 +168,14 @@ VSCode 익스텐션에서 "I18n Smart Manager"를 검색하여 설치하세요.
 // 기본 변환 규칙:
 // - 공백 → 언더스코어: 명시적 띄어쓰기 표현
 // - 점(.) → #dot#: 네임스페이스 구분자(.)와 충돌 방지
-(text) => text.replace(/\s+/g, '_').replace(/\./g, '#dot#');
+// - 백슬래시 이스케이프 시퀀스(\n, \t, \r 등) → \\n, \\t, \\r: 이스케이프 문자 처리
+// - 괄호([]) → #lb#, #rb#: 배열 인덱스 접근과의 충돌 방지
+text
+  .replace(/\s+/g, '_')
+  .replace(/\./g, '#dot#')
+  .replace(/\\(.)/g, '\\\\$1')
+  .replace(/\[/g, '#lb#')
+  .replace(/\]/g, '#rb#');
 ```
 
 ### 네임스페이스 활용

@@ -213,7 +213,17 @@ class LocalesGenerationService {
     // JSON 파일로 저장
     try {
       const jsonContent = JSON.stringify(nestedLocales, null, 2);
-      await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(jsonContent));
+      // JSON에서 value 부분 중복 백슬래시 방지
+      const fixedJsonContent = jsonContent.replace(/:\s*"([^"]*(?:\\.[^"]*)*)"/g, (match, value) => {
+        const fixedValue = value.replace(/\\\\/g, '\\');
+        return `: "${fixedValue}"`;
+      });
+      // key 부분에서 백슬래시 3개 이상을 2개로 줄이기
+      const finalJsonContent = fixedJsonContent.replace(/"([^"]*(?:\\.[^"]*)*)":/g, (match, key) => {
+        const fixedKey = key.replace(/\\{3,}/g, '\\\\');
+        return `"${fixedKey}":`;
+      });
+      await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(finalJsonContent));
 
       const languageName = this.getLanguageName(language);
       const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
@@ -369,7 +379,17 @@ class LocalesGenerationService {
     // JSON 파일로 저장
     try {
       const jsonContent = JSON.stringify(nestedLocales, null, 2);
-      await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(jsonContent));
+      // JSON에서 value 부분 중복 백슬래시 방지
+      const fixedJsonContent = jsonContent.replace(/:\s*"([^"]*(?:\\.[^"]*)*)"/g, (match, value) => {
+        const fixedValue = value.replace(/\\\\/g, '\\');
+        return `: "${fixedValue}"`;
+      });
+      // key 부분에서 백슬래시 3개 이상을 2개로 줄이기
+      const finalJsonContent = fixedJsonContent.replace(/"([^"]*(?:\\.[^"]*)*)":/g, (match, key) => {
+        const fixedKey = key.replace(/\\{3,}/g, '\\\\');
+        return `"${fixedKey}":`;
+      });
+      await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(finalJsonContent));
 
       const languageName = this.getLanguageName(language);
       const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
