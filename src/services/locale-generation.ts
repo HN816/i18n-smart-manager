@@ -6,6 +6,18 @@ import type { FileType, LocaleEntry } from '../types';
 import { getFileType, removeQuotes } from '../utils';
 
 class LocalesGenerationService {
+  private currentNamespace: string = '';
+
+  // 네임스페이스 설정
+  setNamespace(namespace: string): void {
+    this.currentNamespace = namespace;
+  }
+
+  // 네임스페이스 가져오기
+  getNamespace(): string {
+    return this.currentNamespace;
+  }
+
   // 프로젝트 루트 경로를 가져오는 헬퍼 함수
   private getProjectRoot(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -110,7 +122,6 @@ class LocalesGenerationService {
     fileType: FileType,
     originalTexts: string[],
     existingKeys: Set<string>,
-    namespace?: string,
   ): Promise<{
     textsToTranslate: string[];
     skippedTexts: string[];
@@ -136,7 +147,7 @@ class LocalesGenerationService {
       key = key.replace(/\\{2,}/g, '\\');
 
       // 네임스페이스가 있으면 키에 추가
-      const fullKey = namespace ? `${namespace}.${key}` : key;
+      const fullKey = this.currentNamespace ? `${this.currentNamespace}.${key}` : key;
 
       // 이미 존재하는 키인지 확인
       if (existingKeys.has(fullKey)) {
@@ -162,7 +173,6 @@ class LocalesGenerationService {
     language: string,
     outputPath?: string,
     showNotifications: boolean = true,
-    namespace?: string,
   ): Promise<void> {
     if (originalTexts.length === 0) {
       if (showNotifications) {
@@ -183,7 +193,6 @@ class LocalesGenerationService {
       fileType,
       originalTexts,
       existingKeys,
-      namespace,
     );
 
     // 번역이 필요한 텍스트가 없으면 알림 후 종료
@@ -219,13 +228,7 @@ class LocalesGenerationService {
       localeEntries,
       newKeys,
       skippedKeys: newSkippedKeys,
-    } = await this.processTextsToLocaleEntries(
-      fileType,
-      textsToTranslate,
-      adjustedTranslatedTexts,
-      existingKeys,
-      namespace,
-    );
+    } = await this.processTextsToLocaleEntries(fileType, textsToTranslate, adjustedTranslatedTexts, existingKeys);
 
     // JSON 파일 저장 및 결과 처리
     await this.saveAndNotifyResults(
@@ -233,7 +236,6 @@ class LocalesGenerationService {
       existingLocales,
       localeEntries,
       language,
-      namespace,
       newKeys,
       [...skippedKeys, ...newSkippedKeys], // 기존 건너뛴 키들과 새로 건너뛴 키들 합치기
       showNotifications,
@@ -268,7 +270,6 @@ class LocalesGenerationService {
     originalTexts: string[],
     translatedTexts: string[] | null,
     existingKeys: Set<string>,
-    namespace?: string,
   ): Promise<{
     localeEntries: LocaleEntry[];
     newKeys: string[];
@@ -310,7 +311,7 @@ class LocalesGenerationService {
       }
 
       // 네임스페이스가 있으면 키에 추가
-      const fullKey = namespace ? `${namespace}.${key}` : key;
+      const fullKey = this.currentNamespace ? `${this.currentNamespace}.${key}` : key;
 
       // 중복 키가 있는지 확인
       if (existingKeys.has(fullKey) || usedKeys.has(fullKey)) {
@@ -337,7 +338,6 @@ class LocalesGenerationService {
     existingLocales: { [key: string]: string },
     localeEntries: LocaleEntry[],
     language: string,
-    namespace: string | undefined,
     newKeys: string[],
     skippedKeys: string[],
     showNotifications: boolean,
@@ -368,7 +368,7 @@ class LocalesGenerationService {
       await vscode.workspace.fs.writeFile(vscode.Uri.file(targetPath), new TextEncoder().encode(finalJsonContent));
 
       if (showNotifications) {
-        await this.showSuccessNotification(targetPath, language, namespace, newKeys, skippedKeys);
+        await this.showSuccessNotification(targetPath, language, newKeys, skippedKeys);
       }
     } catch (error: any) {
       vscode.window.showErrorMessage(`파일 생성 중 오류가 발생했습니다: ${error.message}`);
@@ -379,13 +379,12 @@ class LocalesGenerationService {
   private async showSuccessNotification(
     targetPath: string,
     language: string,
-    namespace: string | undefined,
     newKeys: string[],
     skippedKeys: string[],
   ): Promise<void> {
     const languageName = this.getLanguageName(language);
     const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
-    const namespaceText = namespace ? ` (${namespace} 네임스페이스)` : ' (루트 레벨)';
+    const namespaceText = this.currentNamespace ? ` (${this.currentNamespace} 네임스페이스)` : ' (루트 레벨)';
 
     // 결과 메시지 구성
     let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}${namespaceText}\n`;
@@ -426,7 +425,6 @@ class LocalesGenerationService {
     language: string = 'ko',
     outputPath?: string,
     showNotifications: boolean = true,
-    namespace?: string,
   ): Promise<void> {
     await this.processLocaleGeneration(
       fileType,
@@ -435,7 +433,6 @@ class LocalesGenerationService {
       language,
       outputPath,
       showNotifications,
-      namespace,
     );
   }
 
@@ -447,7 +444,6 @@ class LocalesGenerationService {
     language: string,
     outputPath?: string,
     showNotifications: boolean = true,
-    namespace?: string,
   ): Promise<void> {
     await this.processLocaleGeneration(
       fileType,
@@ -456,7 +452,6 @@ class LocalesGenerationService {
       language,
       outputPath,
       showNotifications,
-      namespace,
     );
   }
 
@@ -551,7 +546,7 @@ class LocalesGenerationService {
         const namespace = await vscode.window.showInputBox({
           prompt: `네임스페이스 입력 (선택사항)\n`,
           placeHolder: 'common → common.안녕하세요 (빈 값이면 루트 레벨)',
-          value: '',
+          value: this.currentNamespace, // 현재 네임스페이스 값을 기본값으로 설정
           ignoreFocusOut: true,
         });
 
@@ -559,16 +554,19 @@ class LocalesGenerationService {
           return; // 사용자가 취소한 경우
         }
 
+        // 네임스페이스 설정
+        this.setNamespace(namespace);
+
         if (selectedLanguage === 'all') {
           // 전체 언어 생성 (활성화된 언어들)
           const allLanguages = activeLanguages.map((lang) => lang.code);
-          await this.generateAllLanguages(fileType, texts, allLanguages, namespace);
+          await this.generateAllLanguages(fileType, texts, allLanguages);
         } else if (selectedLanguage === 'ko') {
           // 한국어는 바로 생성
-          await this.generateLocalesJson(fileType, texts, selectedLanguage, undefined, true, namespace);
+          await this.generateLocalesJson(fileType, texts, selectedLanguage, undefined, true);
         } else {
           // 다른 언어는 DeepL로 번역 후 생성
-          await this.generateLocalesWithDeepL(fileType, texts, selectedLanguage, namespace);
+          await this.generateLocalesWithDeepL(fileType, texts, selectedLanguage);
         }
       }
     });
@@ -577,12 +575,7 @@ class LocalesGenerationService {
   }
 
   // DeepL로 번역과 함께 locales 파일 생성 (중복 번역 방지 개선)
-  private async generateLocalesWithDeepL(
-    fileType: FileType,
-    texts: string[],
-    language: string,
-    namespace?: string,
-  ): Promise<void> {
+  private async generateLocalesWithDeepL(fileType: FileType, texts: string[], language: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('I18nSmartManager.translation');
     const apiKey = config.get<string>('deeplApiKey', '');
 
@@ -612,7 +605,6 @@ class LocalesGenerationService {
         fileType,
         texts,
         existingKeys,
-        namespace,
       );
 
       // 번역이 필요한 텍스트가 없으면 알림 후 종료
@@ -661,7 +653,6 @@ class LocalesGenerationService {
             language,
             undefined,
             true,
-            namespace,
           );
 
           // 4단계: 완료
@@ -677,12 +668,7 @@ class LocalesGenerationService {
   }
 
   // 모든 언어로 locales 파일 생성하는 함수
-  private async generateAllLanguages(
-    fileType: FileType,
-    texts: string[],
-    languages?: string[],
-    namespace?: string,
-  ): Promise<void> {
+  private async generateAllLanguages(fileType: FileType, texts: string[], languages?: string[]): Promise<void> {
     // 언어 목록이 제공되지 않으면 설정에서 활성화된 언어들 사용
     if (!languages) {
       const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
@@ -711,30 +697,25 @@ class LocalesGenerationService {
 
         if (newApiKey) {
           // API 키가 설정되었으면 모든 언어로 생성
-          await this.generateAllLanguages(fileType, texts, languages, namespace);
+          await this.generateAllLanguages(fileType, texts, languages);
         } else {
           // 여전히 API 키가 없으면 한국어만 생성
-          await this.generateLocalesJson(fileType, texts, 'ko', undefined, true, namespace);
+          await this.generateLocalesJson(fileType, texts, 'ko', undefined, true);
           vscode.window.showInformationMessage('한국어 파일만 생성되었습니다.');
         }
       } else if (result === '한국어만 생성') {
-        await this.generateLocalesJson(fileType, texts, 'ko', undefined, true, namespace);
+        await this.generateLocalesJson(fileType, texts, 'ko', undefined, true);
         vscode.window.showInformationMessage('한국어 파일이 생성되었습니다.');
       }
       return;
     }
 
     // DeepL로 모든 언어 생성
-    await this.generateAllLanguagesWithDeepL(fileType, texts, languages, namespace);
+    await this.generateAllLanguagesWithDeepL(fileType, texts, languages);
   }
 
   // DeepL로 모든 언어 생성하는 별도 함수 (건너뛴 키 상세 정보 추가)
-  private async generateAllLanguagesWithDeepL(
-    fileType: FileType,
-    texts: string[],
-    languages: string[],
-    namespace?: string,
-  ): Promise<void> {
+  private async generateAllLanguagesWithDeepL(fileType: FileType, texts: string[], languages: string[]): Promise<void> {
     let successCount = 0;
     let totalCount = languages.length;
     let totalSkippedTexts = 0;
@@ -766,7 +747,7 @@ class LocalesGenerationService {
                   message: `${languageName} 파일 생성 중...`,
                   increment: 0,
                 });
-                await this.generateLocalesJson(fileType, texts, language, undefined, false, namespace);
+                await this.generateLocalesJson(fileType, texts, language, undefined, false);
                 totalTranslatedTexts += texts.length;
               } else {
                 // 다른 언어는 중복 체크 후 DeepL로 번역
@@ -781,7 +762,6 @@ class LocalesGenerationService {
                   fileType,
                   texts,
                   existingKeys,
-                  namespace,
                 );
 
                 // 건너뛴 키들 저장
@@ -835,7 +815,6 @@ class LocalesGenerationService {
                   language,
                   undefined,
                   false,
-                  namespace,
                 );
 
                 totalTranslatedTexts += textsToTranslate.length;
@@ -950,3 +929,6 @@ const service = new LocalesGenerationService();
 export async function showLocalesGenerationDialog(texts: string[], language: string = 'ko'): Promise<void> {
   return service.showLocalesGenerationDialog(texts, language);
 }
+
+export const setNamespace = (namespace: string) => service.setNamespace(namespace);
+export const getNamespace = () => service.getNamespace();
