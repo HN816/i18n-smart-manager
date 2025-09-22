@@ -116,19 +116,37 @@ class KoreanExtractionService {
       if (funcEnd !== -1) {
         const fullMatch = text.substring(start, funcEnd + 1);
 
-        // 첫 번째 인자 추출 - 따옴표 종류에 따라 다르게 처리
+        // 첫 번째 인자 추출 - 수동으로 따옴표 쌍 찾기
         let i18nText = '';
+        const argsStart = start + 2; // t( 다음부터
+        const argsEnd = funcEnd; // ) 이전까지
 
-        // 작은따옴표나 큰따옴표인 경우
-        const simpleQuoteMatch = fullMatch.match(/^t\((['"])(.*?)\1(?:,\s*\[.*?\])?\)$/s);
-        if (simpleQuoteMatch) {
-          i18nText = simpleQuoteMatch[2];
+        // 첫 번째 인자 시작 위치 찾기 (공백/줄바꿈 건너뛰기)
+        let argStart = argsStart;
+        while (argStart < argsEnd && /\s/.test(text[argStart])) {
+          argStart++;
         }
-        // 백틱인 경우 - ${} 표현식 포함하여 처리
-        else {
-          const backtickMatch = fullMatch.match(/^t\(`(.*?)`(?:,\s*\[.*?\])?\)$/s);
-          if (backtickMatch) {
-            i18nText = backtickMatch[1];
+
+        if (argStart < argsEnd) {
+          const firstChar = text[argStart];
+
+          // 따옴표로 시작하는 경우
+          if (firstChar === '"' || firstChar === "'" || firstChar === '`') {
+            const quoteType = firstChar;
+            let quoteEnd = argStart + 1;
+
+            // 닫는 따옴표 찾기 (이스케이프 처리)
+            while (quoteEnd < argsEnd) {
+              if (text[quoteEnd] === quoteType && text[quoteEnd - 1] !== '\\') {
+                break;
+              }
+              quoteEnd++;
+            }
+
+            if (quoteEnd < argsEnd) {
+              // 따옴표 내용 추출
+              i18nText = text.substring(argStart + 1, quoteEnd);
+            }
           }
         }
 
