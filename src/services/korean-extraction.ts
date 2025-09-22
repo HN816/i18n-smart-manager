@@ -491,6 +491,12 @@ class KoreanExtractionService {
     );
     koreanRanges.push(...extractedRanges);
 
+    // Vue 파일인 경우 배열 리터럴에서 한글 문자열 추출
+    if (fileType === 'vue') {
+      const arrayLiteralRanges = this.extractKoreanFromVueArrayLiterals(processedText, positionMap, excludeRanges);
+      koreanRanges.push(...arrayLiteralRanges);
+    }
+
     // 문자별 처리 로직
     const characterProcessedRanges = this.processTextCharacterByCharacter(
       processedText,
@@ -590,6 +596,13 @@ class KoreanExtractionService {
         const vueQuotedMatch = remainingText.match(/^"[\s\n\r]*\{[^}]*\}[\s\n\r]*"/);
         if (vueQuotedMatch) {
           i += vueQuotedMatch[0].length - 1; // 패턴 길이만큼 건너뛰기
+          continue;
+        }
+
+        // Vue 배열 리터럴 패턴도 건너뛰기
+        const vueArrayMatch = remainingText.match(/^"\[[^\]]*\]"/);
+        if (vueArrayMatch) {
+          i += vueArrayMatch[0].length - 1; // 패턴 길이만큼 건너뛰기
           continue;
         }
       }
@@ -867,6 +880,53 @@ class KoreanExtractionService {
     }
 
     return returnBlocks;
+  }
+
+  // Vue 템플릿에서 배열 리터럴 내부의 한글 문자열 추출
+  private extractKoreanFromVueArrayLiterals(
+    processedText: string,
+    positionMap: number[],
+    excludeRanges: { start: number; end: number }[] = [],
+  ): TextRange[] {
+    const koreanRanges: TextRange[] = [];
+
+    // Vue 속성에서 배열 리터럴 패턴 찾기
+    const arrayLiteralRegex = /:[\w-]+="\[([^\]]*)\]"/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = arrayLiteralRegex.exec(processedText)) !== null) {
+      const arrayContent = match[1];
+      const arrayStart = match.index + match[0].indexOf('[') + 1; // [ 다음부터
+
+      // 제외 범위 내부인지 확인
+      const isInExcludeRange = excludeRanges.some((range) => match!.index >= range.start && match!.index < range.end);
+      if (isInExcludeRange) {
+        continue;
+      }
+
+      // 배열 내부의 개별 문자열 추출
+      const stringRegex = /(['"`])([^'"`]*[가-힣][^'"`]*)\1/g;
+      let stringMatch: RegExpExecArray | null;
+
+      while ((stringMatch = stringRegex.exec(arrayContent)) !== null) {
+        const quoteType = stringMatch[1];
+        const stringContent = stringMatch[2];
+        const stringStart = arrayStart + stringMatch.index;
+        const stringEnd = stringStart + stringMatch[0].length;
+
+        // 원본 텍스트에서 해당 위치 찾기
+        const originalStart = positionMap[stringStart];
+        const originalEnd = positionMap[stringEnd];
+
+        koreanRanges.push({
+          start: originalStart,
+          end: originalEnd,
+          text: quoteType + stringContent + quoteType,
+        });
+      }
+    }
+
+    return koreanRanges;
   }
 
   // 메인 추출 함수

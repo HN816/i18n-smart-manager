@@ -6,7 +6,7 @@
 
 ### 한글 텍스트 자동 감지
 
-- **Vue, TypeScript, JavaScript, TSX, JSX** 파일에서 한글 텍스트를 자동으로 감지
+- **TypeScript, JavaScript, TSX, JSX, Vue** 파일에서 한글 텍스트를 자동으로 감지
 - 이미 i18n이 적용된 텍스트는 제외하여 중복 변환 방지
 - 주석 내 한글 텍스트는 자동으로 제외
 
