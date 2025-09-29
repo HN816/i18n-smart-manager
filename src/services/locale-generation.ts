@@ -291,7 +291,7 @@ class LocalesGenerationService {
       if (variableInfo.variables.length === 0) {
         // 변수가 없는 경우
         key = convertToI18nKey(originalText);
-        value = translatedTexts ? textToUse : removeQuotes(originalText);
+        value = translatedTexts ? textToUse : originalText;
       } else {
         // 변수가 있는 경우 - 키는 템플릿 기반, 값은 i18n 키 형식으로 변환
         key = convertToI18nKey(variableInfo.template);
@@ -312,6 +312,9 @@ class LocalesGenerationService {
 
       // 네임스페이스가 있으면 키에 추가
       const fullKey = this.currentNamespace ? `${this.currentNamespace}.${key}` : key;
+
+      // 감싸진 따옴표 제거
+      value = removeQuotes(value);
 
       // 중복 키가 있는지 확인
       if (existingKeys.has(fullKey) || usedKeys.has(fullKey)) {
