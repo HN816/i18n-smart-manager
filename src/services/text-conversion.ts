@@ -42,7 +42,9 @@ class TextConversionService {
         .replace(/\./g, '#dot#')
         .replace(/\\(.)/g, '\\\\$1')
         .replace(/\[/g, '#lb#')
-        .replace(/\]/g, '#rb#');
+        .replace(/\]/g, '#rb#')
+        .replace(/'/g, '#sq#')
+        .replace(/"/g, '#dq#');
     }
   }
 
@@ -444,7 +446,7 @@ class TextConversionService {
     const config = vscode.workspace.getConfiguration('I18nSmartManager.keyGeneration');
     const customFunction = config.get<string>(
       'customFunction',
-      "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#').replace(/\\\\(.)/g, '\\\\\\\\$1').replace(/\\[/g, '#lb#').replace(/\\]/g, '#rb#')",
+      "text => text.replace(/\\s+/g, '_').replace(/\\./g, '#dot#').replace(/\\\\(.)/g, '\\\\\\\\$1').replace(/\\[/g, '#lb#').replace(/\\]/g, '#rb#').replace(/'/g, '#sq#').replace(/\"/g, '#dq#')",
     );
 
     // 따옴표로 감싸진 텍스트인 경우 시작과 끝의 따옴표 제거
