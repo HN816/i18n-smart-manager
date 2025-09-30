@@ -1,4 +1,5 @@
 import type { TextRange, ExtractedTexts, FileType } from '../types';
+import { removeQuotes } from '../utils';
 
 class KoreanExtractionService {
   // 주석 제거 함수 (위치 매핑 정보도 반환)
@@ -388,7 +389,6 @@ class KoreanExtractionService {
         text: innerText,
       });
     }
-
     return koreanRanges;
   }
 
@@ -403,7 +403,7 @@ class KoreanExtractionService {
 
     if (fileType === 'vue') {
       // Vue: {{}} 패턴 찾기
-      const vueRegex = /\{\{([^}]+)\}\}/g;
+      const vueRegex = /\{\{(.*?)\}\}/g;
       let match: RegExpExecArray | null;
       while ((match = vueRegex.exec(processedText)) !== null) {
         const isInExcludeRange = excludeRanges.some(
@@ -447,8 +447,8 @@ class KoreanExtractionService {
         }
       }
     } else if (fileType === 'tsx') {
-      // TSX: {} 패턴 찾기
-      const tsxRegex = /\{([^{}]*[가-힣][^{}]*)\}/g;
+      // TSX: {``} 패턴 찾기
+      const tsxRegex = /\{`([^`]*[가-힣][^`]*)`\}/g;
       let match: RegExpExecArray | null;
       while ((match = tsxRegex.exec(processedText)) !== null) {
         const isInExcludeRange = excludeRanges.some(
@@ -456,7 +456,7 @@ class KoreanExtractionService {
         );
 
         if (!isInExcludeRange) {
-          const content = match[1];
+          const content = '`' + match[1] + '`'; // 백틱까지 포함한 전체 내용
           const variableStart = match.index!; // processedText 내의 위치
           const extracted = this.extractKoreanFromVariableContent(content, positionMap[variableStart], 1);
           const variableEnd = match.index! + match[0].length; // processedText 내의 위치
@@ -518,7 +518,6 @@ class KoreanExtractionService {
     for (const koreanRange of koreanRanges) {
       // 이 범위 안에 완전히 포함된 variableRanges 찾기
       const insideVariables = variableRanges.filter((vr) => vr.start >= koreanRange.start && vr.end <= koreanRange.end);
-
       if (insideVariables.length === 0) {
         // 변수가 없으면 그대로 추가
         result.push(koreanRange);
@@ -638,7 +637,7 @@ class KoreanExtractionService {
 
           // 문자열 안에 한글이 있었는지 확인
           if (hasKorean) {
-            this.saveStringContent(currentWord, currentStart, stringType, positionMap, koreanRanges);
+            this.saveStringContent(currentWord, currentStart, stringType, positionMap, koreanRanges, fileType);
           }
 
           // 문자열 종료
@@ -713,31 +712,48 @@ class KoreanExtractionService {
     stringType: string | null,
     positionMap: number[],
     koreanRanges: TextRange[],
+    fileType: FileType,
   ): void {
     // 따옴표는 제외하고 내용만 추출
-    let content = currentWord.slice(1, -1).trim();
-
-    // >< 태그의 경우 추가 공백/줄바꿈 제거
-    if (stringType === '>') {
-      content = content.replace(/^[\s\n\r]+/, '').replace(/[\s\n\r]+$/, '');
-    }
+    let content = removeQuotes(currentWord.trim());
 
     if (content) {
       if (stringType === '>') {
-        // >< 태그의 경우 양 끝 공백/줄바꿈 제거
-        const fullContent = currentWord.slice(1, -1);
-        const trimmedStart = fullContent.length - fullContent.trimStart().length;
-        const trimmedEnd = fullContent.trimEnd().length;
+        let fullContent = currentWord.slice(1, -1);
 
-        const textStart = currentStart + 1 + trimmedStart;
-        const textEnd = currentStart + 1 + trimmedEnd;
+        // Vue 파일의 {{`...`}} 패턴 처리
+        const vueTemplateRegex = /^\s*\{\{\s*`([\s\S]*)`\s*\}\}\s*$/;
+        // TSX 파일의 {`...`} 패턴 처리
+        const tsxTemplateRegex = /^\s*\{\s*`([\s\S]*)`\s*\}\s*$/;
+
+        let templateOffset = 0; // 템플릿 패턴으로 인한 오프셋
+        let extractedContent = fullContent;
+
+        if (fileType === 'vue') {
+          const vueMatch = fullContent.match(vueTemplateRegex);
+          if (vueMatch) {
+            extractedContent = vueMatch[1];
+            templateOffset = fullContent.indexOf('`') + 1;
+          }
+        } else if (fileType === 'tsx') {
+          const tsxMatch = fullContent.match(tsxTemplateRegex);
+          if (tsxMatch) {
+            extractedContent = tsxMatch[1];
+            templateOffset = fullContent.indexOf('`') + 1;
+          }
+        }
+        const trimmedStart = extractedContent.length - extractedContent.trimStart().length;
+        const trimmedEnd = extractedContent.trimEnd().length;
+
+        const textStart = currentStart + 1 + templateOffset + trimmedStart;
+        const textEnd = currentStart + 1 + templateOffset + trimmedEnd;
         const textOriginalStart = positionMap[textStart];
         const textOriginalEnd = positionMap[textEnd - 1] + 1;
 
         koreanRanges.push({
           start: textOriginalStart,
           end: textOriginalEnd,
-          text: content,
+          text: extractedContent.trim(),
         });
       } else {
         const textStart = currentStart + 1;

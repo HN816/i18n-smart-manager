@@ -240,7 +240,10 @@ class TextConversionService {
 
     sortedModifications.forEach((mod) => {
       // props 바인딩 체크하여 mod 수정 (vue: key="{{t()}}" → :key="{t()}", tsx: key="{t()}" → key={t()})
-      const finalMod = this.checkAndFixPropsBinding(fileType, mod, document);
+      let finalMod = this.checkAndFixPropsBinding(fileType, mod, document);
+
+      // 무의미한 문자열화 체크하여 mod 수정
+      finalMod = this.checkAndFixUnnecessaryStringification(fileType, finalMod, document);
 
       const startPos = document.positionAt(finalMod.start);
       const endPos = document.positionAt(finalMod.end);
@@ -286,7 +289,7 @@ class TextConversionService {
 
       if (isWrappedInDoubleBraces) {
         // key="{{t()}}" 패턴이 포함되어 있는지 확인
-        const vuePropsPattern = /(\w+(?:-\w+)*)="\{\{(t\([^}]*\))\}\}"/;
+        const vuePropsPattern = /(\w+(?:-\w+)*)="\{\{(t\(.*?\))\}\}"/;
         const match = fullContext.match(vuePropsPattern);
         if (match) {
           const [, propName, tFunction] = match;
@@ -328,6 +331,66 @@ class TextConversionService {
             replacement: `${propName}={${tFunction}}`,
           };
         }
+      }
+    }
+
+    return mod;
+  }
+
+  // 무의미한 문자열화 패턴 체크하여 mod 수정
+  private checkAndFixUnnecessaryStringification(
+    fileType: FileType,
+    mod: Modification,
+    document: vscode.TextDocument,
+  ): Modification {
+    if (!fileType || (fileType !== 'vue' && fileType !== 'tsx')) {
+      return mod;
+    }
+
+    const content = document.getText();
+
+    // replacement 앞뒤로 하나씩만 확인
+    const contextStart = Math.max(0, mod.start - 1);
+    const contextEnd = Math.min(content.length, mod.end + 1);
+
+    // replacement를 포함한 전체 컨텍스트 생성
+    const beforeText = content.substring(contextStart, mod.start);
+    const afterText = content.substring(mod.end, contextEnd);
+    const fullContext = beforeText + mod.replacement + afterText;
+
+    // 무의미한 문자열화 패턴들
+    const unnecessaryStringificationPatterns = [
+      // "{{t()}}"
+      /"\{\{(t\(.*?\))\}\}"/,
+      // '{{t()}}'
+      /'\{\{(t\(.*?\))\}\}'/,
+      // `{{t()}}`
+      /`\{\{(t\(.*?\))\}\}`/,
+      // "{t()}"
+      /"\{t\(.*?\)\}"/,
+      // '{t()}'
+      /'\{t\(.*?\)\}'/,
+      // `{t()}`
+      /`\{t\(.*?\)\}`/,
+    ];
+
+    for (const pattern of unnecessaryStringificationPatterns) {
+      const match = fullContext.match(pattern);
+      if (match) {
+        let replacement = mod.replacement;
+        if (fileType === 'vue') {
+          // Vue: {{t()}} → t()
+          replacement = replacement.slice(2, -2);
+        } else if (fileType === 'tsx') {
+          // TSX: {t()} → t()
+          replacement = replacement.slice(1, -1);
+        }
+
+        return {
+          start: contextStart,
+          end: contextEnd,
+          replacement: replacement,
+        };
       }
     }
 
