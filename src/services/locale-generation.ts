@@ -358,7 +358,7 @@ class LocalesGenerationService {
     try {
       const jsonContent = JSON.stringify(nestedLocales, null, 2);
       // JSON에서 value 부분 중복 백슬래시 방지
-      const fixedJsonContent = jsonContent.replace(/:\s*"([^"]*(?:\\.[^"]*)*)"/g, (match, value) => {
+      const fixedJsonContent = jsonContent.replace(/:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*[,}])/g, (match, value) => {
         const fixedValue = value.replace(/\\\\/g, '\\');
         return `: "${fixedValue}"`;
       });
