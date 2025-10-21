@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { stateManager } from '../state';
+import { I18nItem } from '../providers/i18n-item';
 
 export function registerTextManagementCommands(context: vscode.ExtensionContext): void {
   // 텍스트 제외 명령어 등록
@@ -102,8 +103,22 @@ function addSelectedTextToPending(): void {
     text: selectedText,
   };
 
-  // stateManager의 메서드 사용
-  stateManager.addKoreanRange(newRange);
+  // 고유 ID 생성 (기존 로직과 동일)
+  const uniqueId = `${selectedText}:${start}:${end}`;
 
-  vscode.window.showInformationMessage('pending 목록에 추가되었습니다.');
+  // 제외된 텍스트 목록 확인
+  const excludedIds = stateManager.getTreeDataProvider().getExcludedTexts();
+
+  if (excludedIds.has(uniqueId)) {
+    // 이미 제외된 텍스트라면 다시 포함시키기
+    // I18nItem 객체 생성 (includeText 함수에서 사용)
+    const tempItem = new I18nItem(selectedText, 'korean', vscode.TreeItemCollapsibleState.None, newRange);
+
+    stateManager.getTreeDataProvider().includeText(tempItem);
+    vscode.window.showInformationMessage('제외된 텍스트를 다시 포함시켰습니다.');
+  } else {
+    // 새로운 텍스트라면 pending 목록에 추가
+    stateManager.addKoreanRange(newRange);
+    vscode.window.showInformationMessage('pending 목록에 추가되었습니다.');
+  }
 }
