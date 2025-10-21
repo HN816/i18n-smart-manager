@@ -250,14 +250,22 @@ class LocalesGenerationService {
 
     const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
     const customPath = config.get<string>('outputPath', '');
-    const useNamespaceInFilename = config.get<boolean>('useNamespaceInFilename', false);
+    const filenamePattern = config.get<string>('filenamePattern', 'locales.{language}.json');
 
-    let fileName: string;
+    // 파일명 패턴에서 변수 치환
+    let fileName = filenamePattern.replace('{language}', language).replace('{namespace}', this.currentNamespace || '');
 
-    // 네임스페이스별 파일명 설정이 활성화되고 네임스페이스가 있는 경우
-    if (useNamespaceInFilename && this.currentNamespace) {
-      fileName = `locales.${this.currentNamespace}.${language}.json`;
-    } else {
+    // 네임스페이스가 비어있을 때 불필요한 점이나 슬래시 제거
+    fileName = fileName
+      .replace(/\.{2,}/g, '.') // 연속된 점을 하나로
+      .replace(/\/{2,}/g, '/') // 연속된 슬래시를 하나로
+      .replace(/^\./, '') // 시작하는 점 제거
+      .replace(/^\//, '') // 시작하는 슬래시 제거
+      .replace(/\.$/, '') // 끝나는 점 제거
+      .replace(/\/$/, ''); // 끝나는 슬래시 제거
+
+    // 최종 파일명이 비어있으면 기본값 사용
+    if (!fileName) {
       fileName = `locales.${language}.json`;
     }
 
@@ -396,19 +404,15 @@ class LocalesGenerationService {
     const languageName = this.getLanguageName(language);
     const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
 
-    // 네임스페이스별 파일명 설정 확인
+    // 파일명 패턴 설정 확인
     const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
-    const useNamespaceInFilename = config.get<boolean>('useNamespaceInFilename', false);
+    const filenamePattern = config.get<string>('filenamePattern', 'locales.{language}.json');
 
-    const namespaceText =
-      useNamespaceInFilename && this.currentNamespace
-        ? ` (${this.currentNamespace} 네임스페이스별 파일)`
-        : this.currentNamespace
-        ? ` (${this.currentNamespace} 네임스페이스 - 통합 파일)`
-        : ' (루트 레벨)';
+    const namespaceText = this.currentNamespace ? ` (${this.currentNamespace} 네임스페이스)` : ' (루트 레벨)';
 
     // 결과 메시지 구성
     let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}${namespaceText}\n`;
+    message += `패턴: ${filenamePattern}\n`;
     message += `새로 추가된 항목: ${newKeys.length}개\n`;
     if (skippedKeys.length > 0) {
       message += `이미 존재하여 건너뛴 항목: ${skippedKeys.length}개`;
