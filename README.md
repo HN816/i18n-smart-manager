@@ -18,7 +18,8 @@
 
 ### Locales 파일 자동 생성
 
-- 추출된 텍스트로 `locales.{language}.json` 파일 자동 생성
+- 추출된 텍스트로 locales 파일 자동 생성
+- **커스터마이징 가능한 파일명 패턴**: `{language}`, `{namespace}` 변수 사용
 - 기존 파일과 병합하여 중복 키 방지
 - **DeepL API**를 통한 자동 번역 지원 (영어, 중국어, 일본어)
 - 중첩 구조 지원: 네임스페이스별로 그룹화된 파일 구조
@@ -52,7 +53,7 @@ VSCode 익스텐션에서 "I18n Smart Manager"를 검색하여 설치하세요.
 1. **locales 파일 생성** 버튼 클릭
 2. 번역이 필요한 언어 선택
 3. **네임스페이스 입력** (선택사항): 키를 그룹화할 네임스페이스 입력
-4. 자동으로 `locales.ko.json`, `locales.en.json` 등 파일 생성
+4. 설정된 파일명 패턴에 따라 자동으로 파일 생성
 
 ### 4. 텍스트 변환
 
@@ -68,7 +69,8 @@ VSCode 익스텐션에서 "I18n Smart Manager"를 검색하여 설치하세요.
 ```json
 {
   "I18nSmartManager.locales.outputPath": "", // locales 파일 저장 경로
-  "I18nSmartManager.locales.enabledLanguages": ["ko", "en", "zh", "ja"] // 활성화할 언어
+  "I18nSmartManager.locales.enabledLanguages": ["ko", "en", "zh", "ja"], // 활성화할 언어
+  "I18nSmartManager.locales.filenamePattern": "locales.{language}.json" // 파일명 패턴
 }
 ```
 
@@ -182,6 +184,30 @@ text
   .replace(/"/g, '#dq#');
 ```
 
+### 파일명 패턴 커스터마이징
+
+프로젝트 구조에 맞는 locales 파일명을 자유롭게 설정할 수 있습니다:
+
+```json
+{
+  "I18nSmartManager.locales.filenamePattern": "locales.{language}.json" // 기본값
+}
+```
+
+#### 사용 가능한 변수
+
+- `{language}`: 언어 코드 (ko, en, zh, ja)
+- `{namespace}`: 네임스페이스 (입력한 경우에만)
+
+#### 패턴 예시
+
+- `locales.{language}.json` → `locales.ko.json`
+- `locales.{namespace}.{language}.json` → `locales.common.ko.json`
+- `{language}/locales.json` → `ko/locales.json`
+- `{language}/locales.{namespace}.json` → `ko/locales.common.json`
+- `locales-{namespace}.{language}.json` → `locales-common.ko.json`
+- `{language}/{namespace}.json` → `ko/common.json`
+
 ### 네임스페이스 활용
 
 대규모 프로젝트에서 i18n 키를 체계적으로 관리할 수 있습니다:
@@ -196,6 +222,7 @@ text
 
 - 개별 텍스트 제외/포함 설정
 - 컨텍스트 메뉴로 간편한 관리
+- 제외된 텍스트를 다시 선택하여 포함시키기 가능
 
 ### 하이라이트 커스터마이징
 
