@@ -276,6 +276,11 @@
             "none"
           ],
           "description": "i18n text decoration style"
+        },
+        "I18nSmartManager.locales.useNamespaceInFilename": {
+          "type": "boolean",
+          "default": false,
+          "description": "네임스페이스별로 별도 파일 생성 (locales.{namespace}.{language}.json)"
         }
       }
     }

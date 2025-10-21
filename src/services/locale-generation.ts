@@ -250,16 +250,24 @@ class LocalesGenerationService {
 
     const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
     const customPath = config.get<string>('outputPath', '');
+    const useNamespaceInFilename = config.get<boolean>('useNamespaceInFilename', false);
+
+    let fileName: string;
+
+    // 네임스페이스별 파일명 설정이 활성화되고 네임스페이스가 있는 경우
+    if (useNamespaceInFilename && this.currentNamespace) {
+      fileName = `locales.${this.currentNamespace}.${language}.json`;
+    } else {
+      fileName = `locales.${language}.json`;
+    }
 
     if (customPath) {
       // 사용자가 지정한 경로가 있으면 그곳에 저장
       const resolvedPath = this.resolvePath(customPath);
-      const fileName = `locales.${language}.json`;
       return path.join(resolvedPath, fileName);
     } else {
       // 기본은 프로젝트 루트에 저장
       const projectRoot = this.getProjectRoot();
-      const fileName = `locales.${language}.json`;
       return path.join(projectRoot, fileName);
     }
   }
@@ -387,7 +395,17 @@ class LocalesGenerationService {
   ): Promise<void> {
     const languageName = this.getLanguageName(language);
     const fileName = targetPath.split(/[\\/]/).pop(); // 파일명만 추출
-    const namespaceText = this.currentNamespace ? ` (${this.currentNamespace} 네임스페이스)` : ' (루트 레벨)';
+
+    // 네임스페이스별 파일명 설정 확인
+    const config = vscode.workspace.getConfiguration('I18nSmartManager.locales');
+    const useNamespaceInFilename = config.get<boolean>('useNamespaceInFilename', false);
+
+    const namespaceText =
+      useNamespaceInFilename && this.currentNamespace
+        ? ` (${this.currentNamespace} 네임스페이스별 파일)`
+        : this.currentNamespace
+        ? ` (${this.currentNamespace} 네임스페이스 - 통합 파일)`
+        : ' (루트 레벨)';
 
     // 결과 메시지 구성
     let message = `${languageName} locales 파일이 업데이트되었습니다: ${fileName}${namespaceText}\n`;
