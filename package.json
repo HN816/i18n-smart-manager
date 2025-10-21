@@ -2,7 +2,7 @@
   "name": "i18n-smart-manager",
   "displayName": "I18n Smart Manager",
   "description": "Korean text extraction and i18n management extension",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "hyen",
   "repository": {
     "type": "git",
