@@ -1,9 +1,10 @@
 {
   "name": "i18n-smart-manager",
-  "displayName": "I18n Smart Manager",
+  "displayName": "I18n Smart Manager (Deprecated)",
   "description": "Korean text extraction and i18n management extension",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "hyen",
+  "deprecated": "This extension has been moved to [i18n-smart-ddock](https://open-vsx.org/extension/ddock/i18n-smart-ddock). Please install the new version.",
   "repository": {
     "type": "git",
     "url": "https://github.com/HN816/i18n-smart-manager.git"
